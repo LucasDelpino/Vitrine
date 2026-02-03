@@ -23,7 +23,7 @@ if($token){
     
     if($rep['pseudo'] != false){
         echo "Vous êtes connecté ".$rep['pseudo']." !";
-        header("Location: Nelegance.html");
+        header("Location: index.html");
         exit();
 
 }
