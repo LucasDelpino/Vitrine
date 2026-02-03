@@ -1,0 +1,164 @@
+@import url('https://fonts.googleapis.com/css2?family=Funnel+Sans:ital,wght@0,300..800;1,300..800&family=Lexend+Giga:wght@100..900&family=Outfit:wght@100..900&family=Parisienne&display=swap');
+
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: "Lexend Giga", sans-serif;
+}
+
+body {
+    align-items: left;
+    background-color: beige;
+    
+}
+.menuA {
+    position: fixed;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    right: 0;
+    background-color: #E6C068;
+    display: none;
+    align-items: center;
+    justify-content: center;
+}
+.menuA ul {
+    list-style: none;
+    text-align: center;
+}
+
+.menuA ul li a {
+    text-decoration: none;
+    color: #9B6f6f;
+    font-size: 50px;
+    line-height: 2;
+}
+
+.active {
+    display: flex;
+}
+
+.toggle {
+    position: relative;
+    z-index: 9;
+    background-color: transparent;
+    color: #E6C068;
+    border: 0;
+    margin: 20px;
+    top: -100px;
+}
+
+.toggle span {
+    font-size: 2rem;
+}
+
+.coloror {
+    color: #9B6f6f;
+}
+
+.logoN img {
+    position: relative;
+    top: -110px;
+    width: auto;
+    height: 90px;
+}
+
+.logoN i {
+    font-size: 40px;
+    position: relative;
+    color: #E6C068;
+    left: 1720px;
+    top: -140px;
+    border: #E6C068;
+}
+.logoN h1 {
+    font-size: small;
+    margin-top: 20px;
+    color: white;
+    text-align: center;
+    background-color: #9B6f6f;
+    top: 60px;
+
+}
+
+section {
+    background-color: #9B6f6f;
+
+
+}
+
+section h1 {
+    color: #E6C068;
+    background-color: #9B6f6f;
+    text-align: center;
+    font-size: 70px;
+    bottom: 10px;
+
+    
+}
+
+
+section nav {
+    color: white;
+    background-color: green;
+}
+
+section nav a {
+    color: white;
+}
+
+.bienvenue {
+    text-align: center;
+    color: white;
+}
+
+.nouveautés p {
+    font-size: 130%;
+    background-color: #E6C068;
+    text-align: center;
+    margin-top: 10px;
+    padding-bottom: 20px;
+}
+.nouveautés p a {
+    color: #9B6f6f;
+}
+
+.présentation {
+    display: block;
+    box-sizing: border-box;
+    box-shadow: 5px 5px 5px white;
+    width: 40%;
+    height: auto;
+    border: solid #E6C068 10px;
+    padding: 5px;
+    overflow: auto;
+    border-radius: 30px;
+}
+.présentation h2 {
+    color: #E6C068;
+    margin-top: 40px;
+    margin-bottom: 30px;
+
+}
+.présentation p {
+    color: white;
+    text-align: left;
+}
+
+
+.contact {
+    border: 2px solid;
+    border-radius: 30px;
+    color: #E6C068;
+    background-color: #9B6f6f;
+    text-align: center;
+    margin-top: 110px;
+    padding: 5px;
+
+}
+
+.contact a {
+    color: white;
+}
