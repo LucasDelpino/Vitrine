@@ -11,19 +11,35 @@ export default function ProductDetail({ refreshCartCount }) {
   const [selectedImage, setSelectedImage] = useState("");
 
   useEffect(() => {
-    fetch(`http://localhost:3000/api/products/${id}`)
-      .then((res) => {
-        if (!res.ok) {
+    const loadProduct = async () => {
+      try {
+        const response = await fetch(`http://localhost:3000/api/products/${id}`, {
+          cache: "no-store",
+        });
+
+        if (!response.ok) {
           throw new Error("Produit introuvable");
         }
-        return res.json();
-      })
-      .then((data) => {
+
+        const data = await response.json();
+        console.log("PRODUCT DETAIL =", data);
+
         setProduct(data);
-        setSelectedImage(data.image_url);
-      })
-      .catch((err) => setError(err.message))
-      .finally(() => setLoading(false));
+
+        const mainImage =
+          data.images && data.images.length > 0
+            ? data.images[0].image_url
+            : data.image_url || "http://localhost:3000/uploads/default.jpg";
+
+        setSelectedImage(mainImage);
+      } catch (err) {
+        setError(err.message);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadProduct();
   }, [id]);
 
   const handleAddToCart = async () => {
@@ -60,15 +76,17 @@ export default function ProductDetail({ refreshCartCount }) {
       <section className="product-detail product-detail--layout">
         <div className="product-detail__media">
           <img
+            key={selectedImage}
             className="product-detail__image"
-            src={selectedImage}
+            src={selectedImage || "http://localhost:3000/uploads/default.jpg"}
             alt={product.name}
             onError={(e) => {
+              console.error("MAIN IMAGE ERROR =", selectedImage);
               e.currentTarget.src = "http://localhost:3000/uploads/default.jpg";
             }}
           />
 
-          {product.images && product.images.length > 1 && (
+          {product.images && product.images.length > 0 && (
             <div className="product-detail__gallery">
               {product.images.map((img) => (
                 <button

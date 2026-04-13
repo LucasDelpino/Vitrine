@@ -29,7 +29,7 @@ app.use(express.json());
 
 app.use(
   "/uploads",
-  express.static(path.join(__dirname, "../../public/uploads"))
+  express.static(path.join(__dirname, "../public/uploads"))
 );
 
 app.get("/", (req, res) => {
@@ -43,7 +43,8 @@ app.use("/api/orders", orderRoutes);
 app.use("/api/stripe", stripeRoutes);
 app.use("/api/admin", adminOrderRoutes);
 app.use("/api/admin", adminProductRoutes);
-app.use("/api/admin", adminProductImageRoutes);
+app.use("/api/admin/products", adminProductImageRoutes);
+
 
 const PORT = process.env.PORT || 3000;
 

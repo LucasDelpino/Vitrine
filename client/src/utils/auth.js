@@ -15,6 +15,11 @@ export function getToken() {
   return localStorage.getItem(TOKEN_KEY);
 }
 
+export function logout() {
+  localStorage.removeItem("user");
+  localStorage.removeItem("token");
+}
+
 export function removeAuth() {
   localStorage.removeItem(USER_KEY);
   localStorage.removeItem(TOKEN_KEY);

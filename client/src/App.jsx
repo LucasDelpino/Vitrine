@@ -13,6 +13,7 @@ import Orders from "./pages/Orders.jsx";
 import OrderDetail from "./pages/OrderDetail.jsx";
 import AdminOrders from "./pages/AdminOrders.jsx";
 import AdminProducts from "./pages/AdminProducts.jsx";
+import Profile from "./pages/Profile.jsx";
 
 
 function App() {
@@ -59,6 +60,7 @@ function App() {
         <Route path="/orders/:id" element={<OrderDetail />} />
         <Route path="/admin/orders" element={<AdminOrders />} />
         <Route path="/admin/products" element={<AdminProducts />} />
+        <Route path="/profile" element={<Profile />} />
       </Routes>
     </>
   );

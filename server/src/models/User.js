@@ -6,13 +6,17 @@ class User {
       "SELECT * FROM users WHERE email = ? LIMIT 1",
       [email]
     );
-
     return rows[0] || null;
   }
 
   static async findById(id) {
     const [rows] = await pool.query(
-      "SELECT id, nom, prenom, email, roles, created_at FROM users WHERE id = ? LIMIT 1",
+      `
+      SELECT id, nom, prenom, email, roles, created_at
+      FROM users
+      WHERE id = ?
+      LIMIT 1
+      `,
       [id]
     );
 
@@ -31,18 +35,22 @@ class User {
     return result.insertId;
   }
 
-  static async findByIdWithEmail(id) {
-    const [rows] = await pool.query(
+  static async updateProfile(id, { nom, prenom, email }) {
+    console.log("User.updateProfile id =", id);
+    console.log("User.updateProfile payload =", { nom, prenom, email });
+
+    const [result] = await pool.query(
       `
-      SELECT id, nom, prenom, email, roles, created_at
-      FROM users
+      UPDATE users
+      SET nom = ?, prenom = ?, email = ?
       WHERE id = ?
-      LIMIT 1
       `,
-      [id]
+      [nom, prenom, email, id]
     );
 
-    return rows[0] || null;
+    console.log("User.updateProfile result =", result);
+
+    return this.findById(id);
   }
 }
 

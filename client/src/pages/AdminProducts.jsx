@@ -3,7 +3,7 @@ import {
   fetchAdminProducts,
   createAdminProduct,
   updateAdminProduct,
-  deleteAdminProduct
+  deleteAdminProduct,
 } from "../services/adminProductApi.js";
 import { uploadAdminProductImage } from "../services/adminProductImageApi.js";
 
@@ -15,7 +15,7 @@ const initialForm = {
   description: "",
   price: "",
   stock: "",
-  is_active: true
+  is_active: true,
 };
 
 export default function AdminProducts() {
@@ -28,8 +28,10 @@ export default function AdminProducts() {
   const loadProducts = async () => {
     try {
       const data = await fetchAdminProducts();
+      console.log("ADMIN PRODUCTS =", data);
       setProducts(data);
     } catch (err) {
+      console.error("LOAD PRODUCTS ERROR =", err);
       setError(err.message);
     }
   };
@@ -43,13 +45,15 @@ export default function AdminProducts() {
 
     setForm((prev) => ({
       ...prev,
-      [name]: type === "checkbox" ? checked : value
+      [name]: type === "checkbox" ? checked : value,
     }));
   };
 
   const resetForm = () => {
     setForm(initialForm);
     setEditingId(null);
+    setError("");
+    setMessage("");
   };
 
   const handleSubmit = async (event) => {
@@ -61,7 +65,7 @@ export default function AdminProducts() {
       const payload = {
         ...form,
         price: Number(form.price),
-        stock: Number(form.stock)
+        stock: Number(form.stock),
       };
 
       if (editingId) {
@@ -89,7 +93,7 @@ export default function AdminProducts() {
       description: product.description || "",
       price: product.price ?? "",
       stock: product.stock ?? "",
-      is_active: Boolean(product.is_active)
+      is_active: Boolean(product.is_active),
     });
     setMessage("");
     setError("");
@@ -103,7 +107,9 @@ export default function AdminProducts() {
     try {
       setError("");
       setMessage("");
+
       await deleteAdminProduct(id);
+
       setMessage("Produit supprimé");
       await loadProducts();
     } catch (err) {
@@ -117,27 +123,31 @@ export default function AdminProducts() {
     try {
       setError("");
       setMessage("");
+
       await uploadAdminProductImage(productId, file);
+
       setMessage("Image ajoutée");
       await loadProducts();
     } catch (err) {
+      console.error("UPLOAD IMAGE ERROR =", err);
       setError(err.message);
     }
   };
 
   return (
     <main className="page">
-      <h1>Administration des produits</h1>
+      <section className="auth-card">
+        <h1>Administration des produits</h1>
 
-      {error && <p className="page-message error">{error}</p>}
-      {message && <p className="product-detail__message">{message}</p>}
+        {error && <p className="page-message error">{error}</p>}
+        {message && <p className="page-message success">{message}</p>}
 
-      <section className="admin-form-card">
         <h2>{editingId ? "Modifier un produit" : "Créer un produit"}</h2>
 
-        <form className="auth-form" onSubmit={handleSubmit}>
+        <form onSubmit={handleSubmit} className="auth-form">
           <input
             name="name"
+            type="text"
             placeholder="Nom"
             value={form.name}
             onChange={handleChange}
@@ -145,6 +155,7 @@ export default function AdminProducts() {
 
           <input
             name="slug"
+            type="text"
             placeholder="Slug"
             value={form.slug}
             onChange={handleChange}
@@ -152,6 +163,7 @@ export default function AdminProducts() {
 
           <input
             name="sku"
+            type="text"
             placeholder="SKU"
             value={form.sku}
             onChange={handleChange}
@@ -159,6 +171,7 @@ export default function AdminProducts() {
 
           <input
             name="short_description"
+            type="text"
             placeholder="Description courte"
             value={form.short_description}
             onChange={handleChange}
@@ -204,14 +217,6 @@ export default function AdminProducts() {
               {editingId ? "Mettre à jour" : "Créer"}
             </button>
 
-          <div style={{ marginTop: "12px" }}>
-            <input
-              type="file"
-              accept="image/jpeg,image/png,image/webp"
-              onChange={(e) => handleImageUpload(product.id, e.target.files[0])}
-            />
-          </div>
-
             {editingId && (
               <button
                 className="admin-secondary-button"
@@ -228,11 +233,61 @@ export default function AdminProducts() {
       <section className="orders-list">
         {products.map((product) => (
           <article key={product.id} className="order-card">
-            <p><strong>ID :</strong> {product.id}</p>
-            <p><strong>Nom :</strong> {product.name}</p>
-            <p><strong>Prix :</strong> {product.price} €</p>
-            <p><strong>Stock :</strong> {product.stock}</p>
-            <p><strong>Actif :</strong> {Number(product.is_active) ? "Oui" : "Non"}</p>
+            <div style={{ marginBottom: "12px" }}>
+              <p>
+                <strong>Image URL :</strong> {product.image_url || "Aucune"}
+              </p>
+
+              {product.image_url ? (
+                <img
+                  src={product.image_url}
+                  alt={product.name}
+                  style={{
+                    width: "120px",
+                    height: "120px",
+                    objectFit: "cover",
+                    borderRadius: "12px",
+                    border: "1px solid #ccc",
+                    display: "block",
+                  }}
+                  onLoad={() => {
+                    console.log("IMAGE OK =", product.image_url);
+                  }}
+                  onError={() => {
+                    console.error("IMAGE ERROR =", product.image_url);
+                  }}
+                />
+              ) : (
+                <p>Aucune image</p>
+              )}
+            </div>
+
+            <p>
+              <strong>ID :</strong> {product.id}
+            </p>
+            <p>
+              <strong>Nom :</strong> {product.name}
+            </p>
+            <p>
+              <strong>Prix :</strong> {product.price} €
+            </p>
+            <p>
+              <strong>Stock :</strong> {product.stock}
+            </p>
+            <p>
+              <strong>Actif :</strong>{" "}
+              {Number(product.is_active) ? "Oui" : "Non"}
+            </p>
+
+            <div style={{ marginTop: "12px" }}>
+              <input
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+                onChange={(e) =>
+                  handleImageUpload(product.id, e.target.files?.[0])
+                }
+              />
+            </div>
 
             <div className="admin-form-actions">
               <button

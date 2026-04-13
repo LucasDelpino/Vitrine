@@ -29,6 +29,10 @@ export default function Header({ cartCount, user }) {
 
           {user ? (
             <>
+              <Link className="site-header__link" to="/profile">
+                Mon profil
+              </Link>
+              
               <Link className="site-header__link" to="/orders">
                 Commandes
               </Link>

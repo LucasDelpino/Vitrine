@@ -7,13 +7,13 @@ class Product {
 
   static async getImages(productId) {
     const [rows] = await pool.query(
-      "SELECT * FROM product_images WHERE product_id = ?",
+      "SELECT * FROM product_images WHERE product_id = ? ORDER BY id DESC",
       [productId]
     );
 
     return rows.map((row) => ({
       ...row,
-      image_url: this.buildImageUrl(row.image)
+      image_url: this.buildImageUrl(row.image),
     }));
   }
 
@@ -32,7 +32,7 @@ class Product {
           image_url:
             images.length > 0
               ? images[0].image_url
-              : this.buildImageUrl("default.jpg")
+              : this.buildImageUrl("default.jpg"),
         };
       })
     );
@@ -57,20 +57,31 @@ class Product {
       image_url:
         images.length > 0
           ? images[0].image_url
-          : this.buildImageUrl("default.jpg")
+          : this.buildImageUrl("default.jpg"),
     };
   }
 
   static async getAllAdmin() {
-    const [rows] = await pool.query(
-      `
-      SELECT *
-      FROM products
-      ORDER BY created_at DESC
-      `
+    const [products] = await pool.query(
+      "SELECT * FROM products ORDER BY created_at DESC"
     );
 
-    return rows;
+    const productsWithImages = await Promise.all(
+      products.map(async (product) => {
+        const images = await this.getImages(product.id);
+
+        return {
+          ...product,
+          images,
+          image_url:
+            images.length > 0
+              ? images[0].image_url
+              : this.buildImageUrl("default.jpg"),
+        };
+      })
+    );
+
+    return productsWithImages;
   }
 
   static async create({
@@ -81,19 +92,12 @@ class Product {
     description,
     price,
     stock,
-    is_active
+    is_active,
   }) {
     const [result] = await pool.query(
       `
       INSERT INTO products (
-        name,
-        slug,
-        sku,
-        short_description,
-        description,
-        price,
-        stock,
-        is_active
+        name, slug, sku, short_description, description, price, stock, is_active
       )
       VALUES (?, ?, ?, ?, ?, ?, ?, ?)
       `,
@@ -105,7 +109,7 @@ class Product {
         description,
         price,
         stock,
-        is_active ? 1 : 0
+        is_active ? 1 : 0,
       ]
     );
 
@@ -136,7 +140,7 @@ class Product {
         data.price,
         data.stock,
         data.is_active ? 1 : 0,
-        id
+        id,
       ]
     );
   }
@@ -155,6 +159,10 @@ class Product {
     );
 
     return result.insertId;
+  }
+
+  static async deleteImagesByProductId(productId) {
+    await pool.query("DELETE FROM product_images WHERE product_id = ?", [productId]);
   }
 
   static async deleteImage(imageId) {
