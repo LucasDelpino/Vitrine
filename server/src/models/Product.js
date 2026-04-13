@@ -7,7 +7,7 @@ class Product {
 
   static async getImages(productId) {
     const [rows] = await pool.query(
-      "SELECT * FROM product_images WHERE product_id = ? ORDER BY id DESC",
+      "SELECT * FROM product_images WHERE product_id = ? ORDER BY sort_order ASC, id ASC",
       [productId]
     );
 
@@ -150,23 +150,72 @@ class Product {
   }
 
   static async addImage(productId, imageName) {
-    const [result] = await pool.query(
+    const [maxRows] = await pool.query(
       `
-      INSERT INTO product_images (product_id, image)
-      VALUES (?, ?)
+      SELECT COALESCE(MAX(sort_order), 0) AS maxSort FROM product_images WHERE product_id = ?
       `,
-      [productId, imageName]
+      [productId]
+    );
+
+    const nextSortOrder = Number(maxRows[0]?.maxSort || 0) + 1;
+
+    const [insertResult] = await pool.query(
+      `
+      INSERT INTO product_images (product_id, image, sort_order)
+      VALUES (?, ?, ?)
+      `,
+      [productId, imageName, nextSortOrder]
     );
 
     return result.insertId;
   }
 
-  static async deleteImagesByProductId(productId) {
-    await pool.query("DELETE FROM product_images WHERE product_id = ?", [productId]);
-  }
-
   static async deleteImage(imageId) {
     await pool.query("DELETE FROM product_images WHERE id = ?", [imageId]);
+  }
+
+  static async setPrimaryImage(productId, imageId) {
+    const [images] = await pool.query(
+      `
+      SELECT id
+      FROM product_images
+      WHERE product_id = ?
+      ORDER BY sort_order ASC, id ASC
+      `,
+      [productId]
+    );
+
+    if (!images.length) {
+      return;
+    }
+
+    let sortOrder = 1;
+
+    await pool.query(
+      `
+      UPDATE product_images
+      SET sort_order = 0
+      WHERE id = ? AND product_id = ?
+      `,
+      [imageId, productId]
+    );
+
+    for (const image of images) {
+      if (Number(image.id) === Number(imageId)) {
+        continue;
+      }
+
+      await pool.query(
+        `
+        UPDATE product_images
+        SET sort_order = ?
+        WHERE id = ? AND product_id = ?
+        `,
+        [sortOrder, image.id, productId]
+      );
+
+      sortOrder += 1;
+    }
   }
 }
 

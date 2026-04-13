@@ -5,7 +5,12 @@ import {
   updateAdminProduct,
   deleteAdminProduct,
 } from "../services/adminProductApi.js";
-import { uploadAdminProductImage } from "../services/adminProductImageApi.js";
+
+import {
+  uploadAdminProductImage,
+  deleteAdminProductImage,
+  setPrimaryAdminProductImage,
+} from "../services/adminProductImageApi.js";
 
 const initialForm = {
   name: "",
@@ -25,10 +30,15 @@ export default function AdminProducts() {
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
 
+  // Images sélectionnées AVANT création d'un produit
+  const [createImages, setCreateImages] = useState([]);
+
+  // Images sélectionnées pendant l'édition
+  const [editImages, setEditImages] = useState([]);
+
   const loadProducts = async () => {
     try {
       const data = await fetchAdminProducts();
-      console.log("ADMIN PRODUCTS =", data);
       setProducts(data);
     } catch (err) {
       console.error("LOAD PRODUCTS ERROR =", err);
@@ -52,8 +62,41 @@ export default function AdminProducts() {
   const resetForm = () => {
     setForm(initialForm);
     setEditingId(null);
+    setCreateImages([]);
+    setEditImages([]);
     setError("");
     setMessage("");
+  };
+
+  const handleCreateImagesChange = (event) => {
+    const files = Array.from(event.target.files || []);
+    setCreateImages(files);
+  };
+
+  const handleEditImagesChange = (event) => {
+    const files = Array.from(event.target.files || []);
+    setEditImages(files);
+  };
+
+  const uploadMultipleImages = async (productId, files) => {
+    for (const file of files) {
+      await uploadAdminProductImage(productId, file);
+    }
+  };
+
+  const handleSetPrimaryImage = async (productId, imageId) => {
+    try {
+      setError("");
+      setMessage("");
+
+      await setPrimaryAdminProductImage(productId, imageId);
+
+      setMessage("Image principale mise à jour");
+      await loadProducts();
+    } catch (err) {
+      console.error("SET PRIMARY IMAGE ERROR =", err);
+      setError(err.message);
+    }
   };
 
   const handleSubmit = async (event) => {
@@ -70,21 +113,45 @@ export default function AdminProducts() {
 
       if (editingId) {
         await updateAdminProduct(editingId, payload);
+
+        if (editImages.length > 0) {
+          await uploadMultipleImages(editingId, editImages);
+        }
+
         setMessage("Produit mis à jour");
       } else {
-        await createAdminProduct(payload);
+        const createdProduct = await createAdminProduct(payload);
+
+        // Selon ton API, l'id peut être dans createdProduct.id
+        // ou dans createdProduct.product.id
+        const newProductId =
+          createdProduct?.id || createdProduct?.product?.id || null;
+
+        if (!newProductId) {
+          throw new Error(
+            "Produit créé mais impossible de récupérer son identifiant"
+          );
+        }
+
+        if (createImages.length > 0) {
+          await uploadMultipleImages(newProductId, createImages);
+        }
+
         setMessage("Produit créé");
       }
 
       resetForm();
       await loadProducts();
     } catch (err) {
+      console.error("SUBMIT ERROR =", err);
       setError(err.message);
     }
   };
 
   const handleEdit = (product) => {
     setEditingId(product.id);
+    setCreateImages([]);
+    setEditImages([]);
     setForm({
       name: product.name || "",
       slug: product.slug || "",
@@ -110,29 +177,41 @@ export default function AdminProducts() {
 
       await deleteAdminProduct(id);
 
+      if (editingId === id) {
+        resetForm();
+      }
+
       setMessage("Produit supprimé");
       await loadProducts();
     } catch (err) {
+      console.error("DELETE PRODUCT ERROR =", err);
       setError(err.message);
     }
   };
 
-  const handleImageUpload = async (productId, file) => {
-    if (!file) return;
+  const handleDeleteImage = async (imageId) => {
+    const confirmed = window.confirm("Supprimer cette image ?");
+
+    if (!confirmed) return;
 
     try {
       setError("");
       setMessage("");
 
-      await uploadAdminProductImage(productId, file);
+      await deleteAdminProductImage(imageId);
 
-      setMessage("Image ajoutée");
+      setMessage("Image supprimée");
       await loadProducts();
     } catch (err) {
-      console.error("UPLOAD IMAGE ERROR =", err);
+      console.error("DELETE IMAGE ERROR =", err);
       setError(err.message);
     }
   };
+
+  const editingProduct =
+    editingId != null
+      ? products.find((product) => Number(product.id) === Number(editingId))
+      : null;
 
   return (
     <main className="page">
@@ -227,36 +306,158 @@ export default function AdminProducts() {
               </button>
             )}
           </div>
+
+          {!editingId && (
+            <div style={{ marginTop: "12px" }}>
+              <label
+                htmlFor="create-product-images"
+                style={{ display: "block", marginBottom: "8px", fontWeight: 600 }}
+              >
+                Images du produit
+              </label>
+
+              <input
+                id="create-product-images"
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+                multiple
+                onChange={handleCreateImagesChange}
+              />
+
+              {createImages.length > 0 && (
+                <p style={{ marginTop: "8px" }}>
+                  {createImages.length} image(s) sélectionnée(s)
+                </p>
+              )}
+            </div>
+          )}
+
+          {editingId && (
+            <div style={{ marginTop: "12px" }}>
+              <label
+                htmlFor="edit-product-images"
+                style={{ display: "block", marginBottom: "8px", fontWeight: 600 }}
+              >
+                Ajouter de nouvelles images
+              </label>
+
+              <input
+                id="edit-product-images"
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+                multiple
+                onChange={handleEditImagesChange}
+              />
+
+              {editImages.length > 0 && (
+                <p style={{ marginTop: "8px" }}>
+                  {editImages.length} nouvelle(s) image(s) sélectionnée(s)
+                </p>
+              )}
+            </div>
+          )}
         </form>
+
+        {editingId && editingProduct && (
+          <div style={{ marginTop: "24px" }}>
+            <h3>Images actuelles du produit</h3>
+
+            {editingProduct.images && editingProduct.images.length > 0 ? (
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))",
+                  gap: "16px",
+                  marginTop: "12px",
+                }}
+              >
+                {editingProduct.images.map((image) => (
+                  <div
+                    key={image.id}
+                    style={{
+                      background: "#fff",
+                      border: "1px solid #ddd",
+                      borderRadius: "12px",
+                      padding: "12px",
+                }}
+              >
+                <img
+                  src={image.image_url}
+                  alt={editingProduct.name}
+                  style={{
+                    width: "100%",
+                    height: "120px",
+                    objectFit: "cover",
+                    borderRadius: "10px",
+                    display: "block",
+                    marginBottom: "10px",
+                  }}
+                  onError={(e) => {
+                    e.currentTarget.src =
+                      "http://localhost:3000/uploads/default.jpg";
+                  }}
+                />
+
+                <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                  <button
+                    type="button"
+                    className="admin-secondary-button"
+                    onClick={() => handleSetPrimaryImage(editingProduct.id, image.id)}
+                  >
+                    Mettre en première
+                  </button>
+
+                  <button
+                    type="button"
+                    className="admin-delete-button"
+                    onClick={() => handleDeleteImage(image.id)}
+                  >
+                    Supprimer l'image
+                  </button>
+                </div>
+              </div>
+            ))}
+              </div>
+            ) : (
+              <p style={{ marginTop: "12px" }}>Aucune image pour ce produit.</p>
+            )}
+          </div>
+        )}
       </section>
 
       <section className="orders-list">
         {products.map((product) => (
           <article key={product.id} className="order-card">
             <div style={{ marginBottom: "12px" }}>
-              <p>
-                <strong>Image URL :</strong> {product.image_url || "Aucune"}
-              </p>
-
-              {product.image_url ? (
-                <img
-                  src={product.image_url}
-                  alt={product.name}
+              {product.images && product.images.length > 0 ? (
+                <div
                   style={{
-                    width: "120px",
-                    height: "120px",
-                    objectFit: "cover",
-                    borderRadius: "12px",
-                    border: "1px solid #ccc",
-                    display: "block",
+                    display: "flex",
+                    gap: "10px",
+                    flexWrap: "wrap",
+                    marginBottom: "12px",
                   }}
-                  onLoad={() => {
-                    console.log("IMAGE OK =", product.image_url);
-                  }}
-                  onError={() => {
-                    console.error("IMAGE ERROR =", product.image_url);
-                  }}
-                />
+                >
+                  {product.images.map((img) => (
+                    <img
+                      key={img.id}
+                      src={img.image_url}
+                      alt={product.name}
+                      style={{
+                        width: "90px",
+                        height: "90px",
+                        objectFit: "cover",
+                        borderRadius: "10px",
+                        border: "1px solid #ccc",
+                        display: "block",
+                      }}
+                      onError={(e) => {
+                        e.currentTarget.src =
+                          "http://localhost:3000/uploads/default.jpg";
+                      }}
+                    />
+                  ))}
+                </div>
               ) : (
                 <p>Aucune image</p>
               )}
@@ -278,16 +479,6 @@ export default function AdminProducts() {
               <strong>Actif :</strong>{" "}
               {Number(product.is_active) ? "Oui" : "Non"}
             </p>
-
-            <div style={{ marginTop: "12px" }}>
-              <input
-                type="file"
-                accept="image/jpeg,image/png,image/webp"
-                onChange={(e) =>
-                  handleImageUpload(product.id, e.target.files?.[0])
-                }
-              />
-            </div>
 
             <div className="admin-form-actions">
               <button

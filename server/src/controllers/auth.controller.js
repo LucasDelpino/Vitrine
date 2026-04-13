@@ -99,14 +99,22 @@ export const updateMe = async (req, res) => {
     console.log("PUT /me req.user =", req.user);
     console.log("PUT /me req.body =", req.body);
 
-    const { nom, prenom, email } = req.body;
+    const {
+      nom,
+      prenom,
+      email,
+      phone,
+      address,
+      postal_code,
+      city,
+      country,
+    } = req.body;
 
     if (!nom || !prenom || !email) {
-      return res.status(400).json({ error: "Tous les champs sont requis" });
+      return res.status(400).json({ error: "Nom, prénom et email sont requis" });
     }
 
     const existingUser = await User.findByEmail(email);
-    console.log("PUT /me existingUser =", existingUser);
 
     if (existingUser && Number(existingUser.id) !== Number(req.user.id)) {
       return res.status(409).json({ error: "Cet email est déjà utilisé" });
@@ -116,9 +124,12 @@ export const updateMe = async (req, res) => {
       nom,
       prenom,
       email,
+      phone,
+      address,
+      postal_code,
+      city,
+      country,
     });
-
-    console.log("PUT /me updatedUser =", updatedUser);
 
     return res.json({
       message: "Profil mis à jour",
@@ -129,4 +140,5 @@ export const updateMe = async (req, res) => {
     return res.status(500).json({ error: "Erreur serveur" });
   }
 };
+
 

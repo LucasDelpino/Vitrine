@@ -12,7 +12,18 @@ class User {
   static async findById(id) {
     const [rows] = await pool.query(
       `
-      SELECT id, nom, prenom, email, roles, created_at
+      SELECT
+        id,
+        nom,
+        prenom,
+        email,
+        roles,
+        phone,
+        address,
+        postal_code,
+        city,
+        country,
+        created_at
       FROM users
       WHERE id = ?
       LIMIT 1
@@ -35,17 +46,35 @@ class User {
     return result.insertId;
   }
 
-  static async updateProfile(id, { nom, prenom, email }) {
-    console.log("User.updateProfile id =", id);
-    console.log("User.updateProfile payload =", { nom, prenom, email });
-
+  static async updateProfile(
+    id,
+    { nom, prenom, email, phone, address, postal_code, city, country }
+  ) {
     const [result] = await pool.query(
       `
       UPDATE users
-      SET nom = ?, prenom = ?, email = ?
+      SET
+        nom = ?,
+        prenom = ?,
+        email = ?,
+        phone = ?,
+        address = ?,
+        postal_code = ?,
+        city = ?,
+        country = ?
       WHERE id = ?
       `,
-      [nom, prenom, email, id]
+      [
+        nom,
+        prenom,
+        email,
+        phone || null,
+        address || null,
+        postal_code || null,
+        city || null,
+        country || null,
+        id,
+      ]
     );
 
     console.log("User.updateProfile result =", result);

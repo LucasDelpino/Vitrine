@@ -14,7 +14,7 @@ export default function Header({ cartCount, user }) {
     <header className="site-header">
       <div className="site-header__inner">
         <Link className="site-header__logo" to="/">
-          NéLégance
+          Nelegance
         </Link>
 
         <nav className="site-header__nav">
@@ -40,7 +40,7 @@ export default function Header({ cartCount, user }) {
               {user.roles === "admin" && (
                 <>
                 <Link className="site-header__link" to="/admin/orders">
-                  Admin
+                  Commandes clients
                 </Link>
 
                 <Link className="site-header__link" to="/admin/products">
