@@ -1,6 +1,7 @@
 import { getToken } from "../utils/auth.js";
+import { buildApiUrl } from "../config/api.js";
 
-const API_URL = "http://localhost:3000/api/auth";
+const API_URL = buildApiUrl("/auth");
 
 export async function loginUser(email, password) {
   const response = await fetch(`${API_URL}/login`, {

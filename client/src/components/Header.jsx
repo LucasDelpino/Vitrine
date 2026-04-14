@@ -37,7 +37,7 @@ export default function Header({ cartCount, user }) {
                 Commandes
               </Link>
 
-              {user.roles === "admin" && (
+              {user?.role && user.role.toLowerCase() === "admin" && (
                 <>
                 <Link className="site-header__link" to="/admin/orders">
                   Commandes clients

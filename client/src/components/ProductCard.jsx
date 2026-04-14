@@ -1,33 +1,43 @@
 import { Link } from "react-router-dom";
+import { buildUploadUrl } from "../config/api.js";
 
 export default function ProductCard({ product }) {
+  const imageUrl =
+    product.images && product.images.length > 0
+      ? buildUploadUrl(product.images[0].image_url)
+      : buildUploadUrl(product.image_url);
+
+  const imageCount =
+    product.images && product.images.length > 0 ? product.images.length : 1;
+
   return (
     <article className="product-card">
-      <div className="product-card__media">
+      <Link to={`/products/${product.id}`} className="product-card__media">
         <img
           className="product-card__image"
-          src={product.image_url}
+          src={imageUrl}
           alt={product.name}
           onError={(e) => {
-            e.currentTarget.src = "http://localhost:3000/uploads/default.jpg";
+            e.currentTarget.src = buildUploadUrl();
           }}
         />
-
-        {product.images?.length > 1 && (
-          <span className="product-card__photos-badge">
-            {product.images.length} photos
-          </span>
-        )}
-      </div>
+        <span className="product-card__photos-badge">
+          {imageCount} photo{imageCount > 1 ? "s" : ""}
+        </span>
+      </Link>
 
       <div className="product-card__body">
-        <h2 className="product-card__title">{product.name}</h2>
-        <p className="product-card__description">{product.description}</p>
+        <h3 className="product-card__title">{product.name}</h3>
+        <p className="product-card__description">
+          {product.description || "Création artisanale aux lignes délicates."}
+        </p>
 
         <div className="product-card__footer">
-          <p className="product-card__price">{product.price} €</p>
+          <p className="product-card__price">
+            {Number(product.price).toFixed(2)} €
+          </p>
 
-          <Link className="product-card__link" to={`/product/${product.id}`}>
+          <Link to={`/products/${product.id}`} className="product-card__link">
             Voir
           </Link>
         </div>

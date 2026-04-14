@@ -1,20 +1,21 @@
 import { getToken } from "../utils/auth.js";
+import { buildApiUrl } from "../config/api.js";
 
-const API_URL = "http://localhost:3000/api/orders";
+const API_URL = buildApiUrl("/orders");
 
 function getAuthHeaders() {
   const token = getToken();
 
   return {
     "Content-Type": "application/json",
-    Authorization: `Bearer ${token}`
+    Authorization: `Bearer ${token}`,
   };
 }
 
 export async function createOrder() {
   const response = await fetch(API_URL, {
     method: "POST",
-    headers: getAuthHeaders()
+    headers: getAuthHeaders(),
   });
 
   const data = await response.json();
@@ -28,7 +29,7 @@ export async function createOrder() {
 
 export async function fetchMyOrders() {
   const response = await fetch(API_URL, {
-    headers: getAuthHeaders()
+    headers: getAuthHeaders(),
   });
 
   const data = await response.json();
@@ -42,7 +43,7 @@ export async function fetchMyOrders() {
 
 export async function fetchOrderById(orderId) {
   const response = await fetch(`${API_URL}/${orderId}`, {
-    headers: getAuthHeaders()
+    headers: getAuthHeaders(),
   });
 
   const data = await response.json();
@@ -56,7 +57,7 @@ export async function fetchOrderById(orderId) {
 
 export async function fetchOrderItems(orderId) {
   const response = await fetch(`${API_URL}/${orderId}/items`, {
-    headers: getAuthHeaders()
+    headers: getAuthHeaders(),
   });
 
   const data = await response.json();

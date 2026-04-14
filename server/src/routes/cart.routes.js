@@ -3,13 +3,13 @@ import {
   getCart,
   addToCart,
   removeFromCart,
-  clearCart
+  clearCart,
 } from "../controllers/cart.controller.js";
-import authMiddleware from "../middleware/auth.middleware.js";
+import { requireAuth } from "../middleware/auth.middleware.js";
 
 const router = express.Router();
 
-router.use(authMiddleware);
+router.use(requireAuth);
 
 router.get("/", getCart);
 router.post("/", addToCart);

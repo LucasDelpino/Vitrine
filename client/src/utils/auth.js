@@ -16,8 +16,8 @@ export function getToken() {
 }
 
 export function logout() {
-  localStorage.removeItem("user");
-  localStorage.removeItem("token");
+  localStorage.removeItem(USER_KEY);
+  localStorage.removeItem(TOKEN_KEY);
 }
 
 export function removeAuth() {

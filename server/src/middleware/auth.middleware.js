@@ -1,20 +1,37 @@
 import jwt from "jsonwebtoken";
+import { env } from "../config/env.js";
 
-export default function authMiddleware(req, res, next) {
+function normalizeRole(role) {
+  return String(role || "").toLowerCase().trim();
+}
+
+export function requireAuth(req, res, next) {
+  const authHeader = req.headers.authorization;
+
+  if (!authHeader || !authHeader.startsWith("Bearer ")) {
+    return res.status(401).json({ error: "Non autorisé" });
+  }
+
+  const token = authHeader.split(" ")[1];
+
   try {
-    const authHeader = req.headers.authorization;
+    const decoded = jwt.verify(token, env.jwt.secret);
 
-    if (!authHeader || !authHeader.startsWith("Bearer ")) {
-      return res.status(401).json({ error: "Token manquant" });
-    }
+    req.user = {
+      id: decoded.id,
+      role: normalizeRole(decoded.role),
+    };
 
-    const token = authHeader.split(" ")[1];
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-
-    req.user = decoded;
     next();
-  } catch (error) {
-    console.error("Erreur auth middleware :", error);
+  } catch {
     return res.status(401).json({ error: "Token invalide" });
   }
+}
+
+export function requireAdmin(req, res, next) {
+  if (!req.user || normalizeRole(req.user.role) !== "admin") {
+    return res.status(403).json({ error: "Accès interdit" });
+  }
+
+  next();
 }

@@ -1,18 +1,18 @@
 import express from "express";
-import authMiddleware from "../middleware/auth.middleware.js";
 import {
   createOrder,
   getMyOrders,
+  getOrderById,
   getOrderItems,
-  getOrderById
 } from "../controllers/order.controller.js";
+import { requireAuth } from "../middleware/auth.middleware.js";
 
 const router = express.Router();
 
-router.use(authMiddleware);
+router.use(requireAuth);
 
-router.post("/", createOrder);
 router.get("/", getMyOrders);
+router.post("/", createOrder);
 router.get("/:orderId", getOrderById);
 router.get("/:orderId/items", getOrderItems);
 
