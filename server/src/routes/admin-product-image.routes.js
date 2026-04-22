@@ -10,26 +10,13 @@ import {
 
 const router = express.Router();
 
-router.post(
-  "/:id/images",
-  authMiddleware,
-  adminMiddleware,
-  upload.single("image"),
-  uploadProductImage
-);
+router.use(requireAuth);
+router.use(adminMiddleware);
 
-router.delete(
-  "/images/:imageId",
-  authMiddleware,
-  adminMiddleware,
-  deleteProductImage
-);
+router.post("/:id/images", upload.single("image"), uploadProductImage);
 
-router.patch(
-  "/:id/images/:imageId/primary",
-  authMiddleware,
-  adminMiddleware,
-  setPrimaryProductImage
-);
+router.delete("/images/:imageId", deleteProductImage);
+
+router.patch("/:id/images/:imageId/primary", setPrimaryProductImage);
 
 export default router;

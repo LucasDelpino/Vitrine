@@ -1,20 +1,19 @@
-import { Routes, Route } from "react-router-dom";
 import { useEffect, useState } from "react";
+import { Route, Routes } from "react-router-dom";
+import Header from "./components/Header.jsx";
 import Home from "./pages/Home.jsx";
 import ProductDetail from "./pages/ProductDetail.jsx";
 import Cart from "./pages/Cart.jsx";
 import Login from "./pages/Login.jsx";
 import Register from "./pages/Register.jsx";
-import Header from "./components/Header.jsx";
-import { fetchCart } from "./services/cartApi.js";
-import { getUser } from "./utils/auth.js";
 import OrderSuccess from "./pages/OrderSuccess.jsx";
 import Orders from "./pages/Orders.jsx";
 import OrderDetail from "./pages/OrderDetail.jsx";
 import AdminOrders from "./pages/AdminOrders.jsx";
 import AdminProducts from "./pages/AdminProducts.jsx";
 import Profile from "./pages/Profile.jsx";
-
+import { fetchCart } from "./services/cartApi.js";
+import { getUser } from "./utils/auth.js";
 
 function App() {
   const [cartCount, setCartCount] = useState(0);
@@ -27,10 +26,13 @@ function App() {
   const refreshCartCount = async () => {
     try {
       const cart = await fetchCart();
-      const total = cart.reduce((sum, item) => sum + item.quantity, 0);
+      const total = Array.isArray(cart)
+        ? cart.reduce((sum, item) => sum + item.quantity, 0)
+        : 0;
       setCartCount(total);
     } catch (error) {
       console.error(error.message);
+      setCartCount(0);
     }
   };
 

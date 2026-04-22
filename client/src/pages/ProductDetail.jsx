@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { addProductToCart } from "../services/cartApi.js";
 import { fetchProductById } from "../services/productApi.js";
@@ -16,17 +16,21 @@ export default function ProductDetail({ refreshCartCount }) {
   useEffect(() => {
     const loadProduct = async () => {
       try {
+        setLoading(true);
+        setError("");
+        setMessage("");
+
         const data = await fetchProductById(id);
         setProduct(data);
 
-        const mainImage =
-          data.images && data.images.length > 0
+        const firstImage =
+          Array.isArray(data.images) && data.images.length > 0
             ? buildUploadUrl(data.images[0].image_url)
             : buildUploadUrl(data.image_url);
 
-        setSelectedImage(mainImage);
+        setSelectedImage(firstImage);
       } catch (err) {
-        setError(err.message);
+        setError(err.message || "Impossible de charger le produit");
       } finally {
         setLoading(false);
       }
@@ -35,67 +39,145 @@ export default function ProductDetail({ refreshCartCount }) {
     loadProduct();
   }, [id]);
 
+  const galleryImages = useMemo(() => {
+    if (!product) return [];
+
+    if (Array.isArray(product.images) && product.images.length > 0) {
+      return product.images.map((img) => ({
+        id: img.id,
+        url: buildUploadUrl(img.image_url),
+      }));
+    }
+
+    if (product.image_url) {
+      return [
+        {
+          id: "main-image",
+          url: buildUploadUrl(product.image_url),
+        },
+      ];
+    }
+
+    return [
+      {
+        id: "default-image",
+        url: buildUploadUrl(),
+      },
+    ];
+  }, [product]);
+
   const handleAddToCart = async () => {
     try {
+      if (!product) return;
+
       await addProductToCart(product.id, 1);
-      await refreshCartCount();
+
+      if (typeof refreshCartCount === "function") {
+        await refreshCartCount();
+      }
+
       setMessage("Produit ajouté au panier");
-    } catch (error) {
-      setMessage(error.message);
+    } catch (err) {
+      setMessage(err.message || "Impossible d'ajouter le produit au panier");
     }
   };
 
   if (loading) {
-    return <p>Chargement...</p>;
+    return <div className="page-message">Chargement du produit...</div>;
   }
 
-  if (error) {
+  if (error || !product) {
     return (
-      <div>
-        <p>{error}</p>
-        <Link to="/">Retour à l'accueil</Link>
+      <div className="page-message">
+        <p className="error">{error || "Produit introuvable"}</p>
+        <Link to="/" className="back-link">
+          Retour à l’accueil
+        </Link>
       </div>
     );
   }
 
   return (
-    <section>
-      <Link to="/">← Retour</Link>
+    <section className="page">
+      <Link to="/" className="back-link">
+        ← Retour
+      </Link>
 
-      <div>
-        <img
-          src={selectedImage || buildUploadUrl()}
-          alt={product.name}
-          onError={(e) => {
-            e.currentTarget.src = buildUploadUrl();
-          }}
-        />
-      </div>
-
-      {product.images && product.images.length > 0 && (
-        <div>
-          {product.images.map((img) => (
+      <div className="product-detail">
+        <div className="product-detail--layout">
+          <div className="product-detail__media">
             <img
-              key={img.id}
-              src={buildUploadUrl(img.image_url)}
+              className="product-detail__image"
+              src={selectedImage || buildUploadUrl()}
               alt={product.name}
-              onClick={() => setSelectedImage(buildUploadUrl(img.image_url))}
               onError={(e) => {
                 e.currentTarget.src = buildUploadUrl();
               }}
             />
-          ))}
+
+            {galleryImages.length > 1 && (
+              <div className="product-detail__gallery">
+                {galleryImages.map((img) => {
+                  const isActive = selectedImage === img.url;
+
+                  return (
+                    <button
+                      key={img.id}
+                      type="button"
+                      className={`product-detail__thumb-button ${
+                        isActive ? "is-active" : ""
+                      }`}
+                      onClick={() => setSelectedImage(img.url)}
+                    >
+                      <img
+                        className="product-detail__thumb"
+                        src={img.url}
+                        alt={product.name}
+                        onError={(e) => {
+                          e.currentTarget.src = buildUploadUrl();
+                        }}
+                      />
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          <div className="product-detail__content">
+            <h1 className="product-detail__title">{product.name}</h1>
+
+            <p className="product-detail__description">
+              {product.description || "Aucune description disponible."}
+            </p>
+
+            <p className="product-detail__price">
+              {Number(product.price).toFixed(2)} €
+            </p>
+
+            <p className="product-detail__meta">
+              Stock : {product.stock ?? 0}
+            </p>
+
+            <p className="product-detail__meta">
+              Ajouté le :{" "}
+              {product.created_at
+                ? new Date(product.created_at).toLocaleDateString()
+                : "Date inconnue"}
+            </p>
+
+            <button
+              type="button"
+              className="product-detail__button"
+              onClick={handleAddToCart}
+            >
+              Ajouter au panier
+            </button>
+
+            {message && <p className="product-detail__message">{message}</p>}
+          </div>
         </div>
-      )}
-
-      <h1>{product.name}</h1>
-      <p>{product.description}</p>
-      <p>{product.price} €</p>
-      <p>Ajouté le : {new Date(product.created_at).toLocaleDateString()}</p>
-
-      <button onClick={handleAddToCart}>Ajouter au panier</button>
-
-      {message && <p>{message}</p>}
+      </div>
     </section>
   );
 }

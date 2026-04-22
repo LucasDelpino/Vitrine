@@ -1,8 +1,9 @@
 import pool from "../config/db.js";
+import { env } from "../config/env.js";
 
 class Product {
   static buildImageUrl(filename) {
-    return `http://localhost:3000/uploads/${filename || "default.jpg"}`;
+    return `${env.publicApiUrl}/uploads/${filename || "default.jpg"}`;
   }
 
   static async getImages(productId) {
@@ -152,7 +153,9 @@ class Product {
   static async addImage(productId, imageName) {
     const [maxRows] = await pool.query(
       `
-      SELECT COALESCE(MAX(sort_order), 0) AS maxSort FROM product_images WHERE product_id = ?
+      SELECT COALESCE(MAX(sort_order), 0) AS maxSort
+      FROM product_images
+      WHERE product_id = ?
       `,
       [productId]
     );
@@ -167,7 +170,7 @@ class Product {
       [productId, imageName, nextSortOrder]
     );
 
-    return result.insertId;
+    return insertResult.insertId;
   }
 
   static async deleteImage(imageId) {
