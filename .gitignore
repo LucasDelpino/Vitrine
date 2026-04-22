@@ -1,6 +1,39 @@
-/uploads
-/vendor/
-/node_modules/
-.env
+# Dependencies
+node_modules/
+client/node_modules/
+server/node_modules/
+
+# Build
+dist/
+build/
+client/dist/
+server/dist/
+
+# Logs
+logs/
 *.log
-dist
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Environment files
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+client/.env
+server/.env
+
+# IDE / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Vite
+.vite/
+
+# Temp
+tmp/
+temp/
