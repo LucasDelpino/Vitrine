@@ -2,17 +2,18 @@ import { Link } from "react-router-dom";
 import { buildUploadUrl } from "../config/api.js";
 
 export default function ProductCard({ product }) {
+  const productImages = Array.isArray(product.images) ? product.images : [];
+
   const imageUrl =
-    product.images && product.images.length > 0
-      ? buildUploadUrl(product.images[0].image_url)
+    productImages.length > 0
+      ? buildUploadUrl(productImages[0].image_url)
       : buildUploadUrl(product.image_url);
 
-  const imageCount =
-    product.images && product.images.length > 0 ? product.images.length : 1;
+  const imageCount = productImages.length > 0 ? productImages.length : 1;
 
   return (
     <article className="product-card">
-      <Link to={`/products/${product.id}`} className="product-card__media">
+      <Link to={`/product/${product.id}`} className="product-card__media">
         <img
           className="product-card__image"
           src={imageUrl}
@@ -28,6 +29,7 @@ export default function ProductCard({ product }) {
 
       <div className="product-card__body">
         <h3 className="product-card__title">{product.name}</h3>
+
         <p className="product-card__description">
           {product.description || "Création artisanale aux lignes délicates."}
         </p>
@@ -37,7 +39,7 @@ export default function ProductCard({ product }) {
             {Number(product.price).toFixed(2)} €
           </p>
 
-          <Link to={`/products/${product.id}`} className="product-card__link">
+          <Link to={`/product/${product.id}`} className="product-card__link">
             Voir
           </Link>
         </div>

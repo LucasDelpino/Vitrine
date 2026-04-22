@@ -11,15 +11,23 @@ export default function Home() {
   const [error, setError] = useState("");
 
   useEffect(() => {
-    fetchProducts()
-      .then((data) => setProducts(data))
-      .catch((err) => setError(err.message || "Erreur de chargement"))
-      .finally(() => setLoading(false));
+    const loadProducts = async () => {
+      try {
+        setLoading(true);
+        setError("");
+        const data = await fetchProducts();
+        setProducts(Array.isArray(data) ? data : []);
+      } catch (err) {
+        setError(err.message || "Erreur de chargement");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadProducts();
   }, []);
 
   const featuredProducts = products.slice(0, 6);
-
-  // Remplace le nom si ton fichier est différent dans server/public/uploads
   const heroImage = buildUploadUrl("IMG_2093.jpeg");
 
   return (
@@ -34,9 +42,9 @@ export default function Home() {
           </p>
 
           <div className="hero__actions">
-            <Link to="/" className="btn btn--primary">
+            <a href="#featured" className="btn btn--primary">
               Découvrir la collection
-            </Link>
+            </a>
             <a href="#featured" className="btn btn--secondary">
               Voir les créations
             </a>
@@ -117,9 +125,9 @@ export default function Home() {
             détail. Chaque pièce est pensée pour révéler une élégance discrète
             et accompagner les instants de tous les jours.
           </p>
-          <Link to="/" className="btn btn--primary">
+          <a href="#featured" className="btn btn--primary">
             Voir la collection
-          </Link>
+          </a>
         </div>
       </section>
 

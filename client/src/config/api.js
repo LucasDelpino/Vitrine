@@ -1,10 +1,22 @@
-export const API_BASE_URL =
-  import.meta.env.VITE_API_URL || "http://localhost:3000";
+const rawApiUrl = import.meta.env.VITE_API_URL || "http://localhost:3000";
 
-export const API_URL = `${API_BASE_URL}/api`;
+const normalizedApiUrl = rawApiUrl.endsWith("/")
+  ? rawApiUrl.slice(0, -1)
+  : rawApiUrl;
 
-export function buildApiUrl(path) {
-  return `${API_URL}${path}`;
+const hasApiSuffix = normalizedApiUrl.endsWith("/api");
+
+export const API_BASE_URL = hasApiSuffix
+  ? normalizedApiUrl.slice(0, -4)
+  : normalizedApiUrl;
+
+export const API_URL = hasApiSuffix
+  ? normalizedApiUrl
+  : `${normalizedApiUrl}/api`;
+
+export function buildApiUrl(path = "") {
+  const safePath = path.startsWith("/") ? path : `/${path}`;
+  return `${API_URL}${safePath}`;
 }
 
 export function buildUploadUrl(path = "") {

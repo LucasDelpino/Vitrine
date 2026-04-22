@@ -1,21 +1,22 @@
 import Stripe from "stripe";
 import pool from "../config/db.js";
+import { env } from "../config/env.js";
 import User from "../models/User.js";
 import Order from "../models/Order.js";
 import { sendOrderPaidEmail } from "../services/mail.service.js";
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
+const stripe = new Stripe(env.stripe.secretKey);
 
 export const handleStripeWebhook = async (req, res) => {
-  const sig = req.headers["stripe-signature"];
+  const signature = req.headers["stripe-signature"];
 
   let event;
 
   try {
     event = stripe.webhooks.constructEvent(
       req.body,
-      sig,
-      process.env.STRIPE_WEBHOOK_SECRET
+      signature,
+      env.stripe.webhookSecret
     );
   } catch (error) {
     console.error("Erreur webhook Stripe :", error.message);
@@ -29,7 +30,7 @@ export const handleStripeWebhook = async (req, res) => {
       const orderId = session.metadata?.order_id;
       const userId = session.metadata?.user_id;
 
-      if (orderId) {
+      if (orderId && userId) {
         await pool.query(
           `
           UPDATE orders
@@ -51,7 +52,7 @@ export const handleStripeWebhook = async (req, res) => {
           const previewUrl = await sendOrderPaidEmail({
             to: user.email,
             order,
-            items
+            items,
           });
 
           console.log("Aperçu email Ethereal :", previewUrl);

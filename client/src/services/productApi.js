@@ -1,7 +1,9 @@
 import { buildApiUrl } from "../config/api.js";
 
 export async function fetchProducts() {
-  const response = await fetch(buildApiUrl("/products"));
+  const response = await fetch(buildApiUrl("/products"), {
+    cache: "no-store",
+  });
 
   if (!response.ok) {
     throw new Error("Impossible de charger les produits");

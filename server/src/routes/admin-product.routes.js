@@ -5,12 +5,12 @@ import {
   getAllProductsAdmin,
   createProductAdmin,
   updateProductAdmin,
-  deleteProductAdmin
+  deleteProductAdmin,
 } from "../controllers/admin-product.controller.js";
 
 const router = express.Router();
 
-router.use(authMiddleware);
+router.use(requireAuth);
 router.use(adminMiddleware);
 
 router.get("/products", getAllProductsAdmin);
