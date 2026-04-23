@@ -2,23 +2,28 @@ import { Link, useLocation } from "react-router-dom";
 
 export default function OrderSuccess() {
   const location = useLocation();
-  const order = location.state?.order;
+  const params = new URLSearchParams(location.search);
+  const sessionId = params.get("session_id");
 
   return (
     <main className="page">
       <h1>Commande confirmée</h1>
 
-      {order ? (
-        <>
-          <p>Merci pour votre commande.</p>
-          <p>
-            Référence : <strong>{order.sale_reference}</strong>
-          </p>
-          <p>Total : {order.total} €</p>
-        </>
-      ) : (
-        <p>Aucune information de commande trouvée.</p>
+      <p>
+        Merci pour votre achat. Votre paiement a bien été pris en compte et
+        votre commande a été enregistrée.
+      </p>
+
+      {sessionId && (
+        <p>
+          <strong>Référence de session Stripe :</strong> {sessionId}
+        </p>
       )}
+
+      <p>
+        Vous pouvez consulter le suivi de votre commande dans l’espace
+        <strong> Mes commandes</strong>.
+      </p>
 
       <br />
 

@@ -8,8 +8,17 @@ function getAuthHeaders() {
 
   return {
     "Content-Type": "application/json",
-    Authorization: `Bearer ${token}`,
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
   };
+}
+
+async function parseError(response, fallbackMessage) {
+  try {
+    const data = await response.json();
+    return data.error || fallbackMessage;
+  } catch {
+    return fallbackMessage;
+  }
 }
 
 export async function fetchCart() {
@@ -18,7 +27,7 @@ export async function fetchCart() {
   });
 
   if (!response.ok) {
-    throw new Error("Impossible de récupérer le panier");
+    throw new Error(await parseError(response, "Impossible de récupérer le panier"));
   }
 
   return response.json();
@@ -32,33 +41,33 @@ export async function addProductToCart(productId, quantity = 1) {
   });
 
   if (!response.ok) {
-    throw new Error("Impossible d'ajouter au panier");
+    throw new Error(await parseError(response, "Impossible d'ajouter au panier"));
   }
 
   return response.json();
 }
 
-export async function removeProductFromCart(productId) {
+export async function removeFromCart(productId) {
   const response = await fetch(`${API_URL}/${productId}`, {
     method: "DELETE",
     headers: getAuthHeaders(),
   });
 
   if (!response.ok) {
-    throw new Error("Impossible de supprimer");
+    throw new Error(await parseError(response, "Impossible de supprimer"));
   }
 
   return response.json();
 }
 
-export async function clearCartApi() {
+export async function clearCart() {
   const response = await fetch(API_URL, {
     method: "DELETE",
     headers: getAuthHeaders(),
   });
 
   if (!response.ok) {
-    throw new Error("Impossible de vider");
+    throw new Error(await parseError(response, "Impossible de vider"));
   }
 
   return response.json();

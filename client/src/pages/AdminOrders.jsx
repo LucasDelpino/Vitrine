@@ -1,10 +1,41 @@
 import { useEffect, useState } from "react";
 import {
   fetchAdminOrders,
-  updateAdminOrderStatus
+  updateAdminOrderStatus,
 } from "../services/adminOrderApi.js";
 
-const STATUSES = ["pending", "paid", "shipped", "cancelled"];
+const STATUS_OPTIONS = [
+  { value: "pending", label: "En attente" },
+  { value: "paid", label: "Confirmée" },
+  { value: "shipped", label: "Expédiée" },
+  { value: "cancelled", label: "Annulée" },
+];
+
+function formatOrderStatus(status) {
+  const labels = {
+    pending: "En attente",
+    paid: "Confirmée",
+    shipped: "Expédiée",
+    cancelled: "Annulée",
+  };
+
+  return labels[status] || status || "Inconnu";
+}
+
+function formatPaymentStatus(status) {
+  const labels = {
+    unpaid: "Non payé",
+    paid: "Payé",
+    refunded: "Remboursé",
+    failed: "Échoué",
+  };
+
+  return labels[status] || status || "Inconnu";
+}
+
+function formatPrice(value) {
+  return `${Number(value).toFixed(2)} €`;
+}
 
 export default function AdminOrders() {
   const [orders, setOrders] = useState([]);
@@ -14,7 +45,7 @@ export default function AdminOrders() {
   const loadOrders = async () => {
     try {
       const data = await fetchAdminOrders();
-      setOrders(data);
+      setOrders(Array.isArray(data) ? data : []);
     } catch (err) {
       setError(err.message);
     }
@@ -29,7 +60,7 @@ export default function AdminOrders() {
       setError("");
       setMessage("");
       await updateAdminOrderStatus(orderId, newStatus);
-      setMessage("Statut mis à jour");
+      setMessage("Statut mis à jour avec succès.");
       await loadOrders();
     } catch (err) {
       setError(err.message);
@@ -46,25 +77,41 @@ export default function AdminOrders() {
       <div className="orders-list">
         {orders.map((order) => (
           <article key={order.id} className="order-card">
-            <p><strong>Réf :</strong> {order.sale_reference}</p>
-            <p><strong>Client :</strong> {order.prenom} {order.nom}</p>
-            <p><strong>Email :</strong> {order.email}</p>
-            <p><strong>Total :</strong> {order.total} €</p>
-            <p><strong>Paiement :</strong> {order.payment_status}</p>
-            <p><strong>Statut actuel :</strong> {order.status}</p>
+            <p>
+              <strong>Référence :</strong> {order.sale_reference}
+            </p>
+
+            <p>
+              <strong>Client :</strong> {order.prenom} {order.nom}
+            </p>
+
+            <p>
+              <strong>Email :</strong> {order.email}
+            </p>
+
+            <p>
+              <strong>Total :</strong> {formatPrice(order.total)}
+            </p>
+
+            <p>
+              <strong>Paiement :</strong>{" "}
+              {formatPaymentStatus(order.payment_status)}
+            </p>
+
+            <p>
+              <strong>Statut actuel :</strong> {formatOrderStatus(order.status)}
+            </p>
 
             <label>
               Nouveau statut :
               <select
                 value={order.status}
-                onChange={(e) =>
-                  handleStatusChange(order.id, e.target.value)
-                }
+                onChange={(e) => handleStatusChange(order.id, e.target.value)}
                 style={{ marginLeft: "10px" }}
               >
-                {STATUSES.map((status) => (
-                  <option key={status} value={status}>
-                    {status}
+                {STATUS_OPTIONS.map((status) => (
+                  <option key={status.value} value={status.value}>
+                    {status.label}
                   </option>
                 ))}
               </select>

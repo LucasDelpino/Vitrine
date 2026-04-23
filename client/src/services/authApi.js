@@ -57,6 +57,10 @@ export async function fetchMe() {
   return data;
 }
 
+export async function getMe() {
+  return fetchMe();
+}
+
 export async function updateMe(profile) {
   const token = getToken();
 

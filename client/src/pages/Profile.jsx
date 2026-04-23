@@ -1,7 +1,5 @@
-import { useEffect, useState } from "react";
-import { fetchMe, updateMe } from "../services/authApi.js";
-import { searchAddresses } from "../services/addressApi.js";
-import { getToken, saveAuth } from "../utils/auth.js";
+import { useEffect, useRef, useState } from "react";
+import { getMe, updateMe } from "../services/authApi.js";
 
 export default function Profile() {
   const [form, setForm] = useState({
@@ -15,76 +13,93 @@ export default function Profile() {
     country: "",
   });
 
-  const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
-  const [suggestions, setSuggestions] = useState([]);
+  const [loadingSuggestions, setLoadingSuggestions] = useState(false);
+  const [addressSuggestions, setAddressSuggestions] = useState([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
-  const [isSearchingAddress, setIsSearchingAddress] = useState(false);
 
-  // Très important :
-  // false = ne pas relancer l'autocomplete tant que l'utilisateur
-  // n'a pas retapé lui-même dans le champ adresse
-  const [canSearchAddress, setCanSearchAddress] = useState(true);
+  const debounceRef = useRef(null);
+  const containerRef = useRef(null);
 
   useEffect(() => {
-    const loadProfile = async () => {
+    async function loadProfile() {
       try {
-        const user = await fetchMe();
+        setError("");
+        const data = await getMe();
 
         setForm({
-          nom: user.nom || "",
-          prenom: user.prenom || "",
-          email: user.email || "",
-          phone: user.phone || "",
-          address: user.address || "",
-          postal_code: user.postal_code || "",
-          city: user.city || "",
-          country: user.country || "",
+          nom: data.nom || "",
+          prenom: data.prenom || "",
+          email: data.email || "",
+          phone: data.phone || "",
+          address: data.address || "",
+          postal_code: data.postal_code || "",
+          city: data.city || "",
+          country: data.country || "",
         });
       } catch (err) {
-        setError(err.message);
-      } finally {
-        setLoading(false);
+        setError(err.message || "Impossible de charger le profil");
       }
-    };
+    }
 
     loadProfile();
   }, []);
 
   useEffect(() => {
-    if (!canSearchAddress) {
-      return;
+    function handleClickOutside(event) {
+      if (containerRef.current && !containerRef.current.contains(event.target)) {
+        setShowSuggestions(false);
+      }
     }
 
-    const query = form.address.trim();
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, []);
 
-    if (query.length < 3) {
-      setSuggestions([]);
+  async function fetchAddressSuggestions(query) {
+    if (!query || query.trim().length < 3) {
+      setAddressSuggestions([]);
       setShowSuggestions(false);
       return;
     }
 
-    const timeout = setTimeout(async () => {
-      try {
-        setIsSearchingAddress(true);
-        const results = await searchAddresses(query);
-        setSuggestions(results);
-        setShowSuggestions(results.length > 0);
-      } catch (err) {
-        console.error("Erreur recherche adresse :", err);
-        setSuggestions([]);
-        setShowSuggestions(false);
-      } finally {
-        setIsSearchingAddress(false);
-      }
-    }, 300);
+    try {
+      setLoadingSuggestions(true);
 
-    return () => clearTimeout(timeout);
-  }, [form.address, canSearchAddress]);
+      const response = await fetch(
+        `https://api-adresse.data.gouv.fr/search/?q=${encodeURIComponent(
+          query
+        )}&limit=5`
+      );
 
-  const handleChange = (event) => {
-    const { name, value } = event.target;
+      const data = await response.json();
+
+      const suggestions = Array.isArray(data.features)
+        ? data.features.map((feature) => ({
+            label: feature.properties.label || "",
+            name: feature.properties.name || "",
+            postcode: feature.properties.postcode || "",
+            city: feature.properties.city || "",
+            country: "France",
+          }))
+        : [];
+
+      setAddressSuggestions(suggestions);
+      setShowSuggestions(suggestions.length > 0);
+    } catch (err) {
+      console.error("Erreur suggestions adresse :", err);
+      setAddressSuggestions([]);
+      setShowSuggestions(false);
+    } finally {
+      setLoadingSuggestions(false);
+    }
+  }
+
+  function handleChange(e) {
+    const { name, value } = e.target;
 
     setForm((prev) => ({
       ...prev,
@@ -92,78 +107,85 @@ export default function Profile() {
     }));
 
     if (name === "address") {
-      // L'utilisateur retape : on réactive l'autocomplete
-      setCanSearchAddress(true);
+      setShowSuggestions(false);
+      setAddressSuggestions([]);
 
-      if (value.trim().length >= 3) {
-        setShowSuggestions(true);
-      } else {
-        setSuggestions([]);
-        setShowSuggestions(false);
+      if (debounceRef.current) {
+        clearTimeout(debounceRef.current);
       }
-    }
-  };
 
-  const handleSelectAddress = (item) => {
+      debounceRef.current = setTimeout(() => {
+        fetchAddressSuggestions(value);
+      }, 300);
+    }
+  }
+
+  function handleSelectSuggestion(suggestion) {
     setForm((prev) => ({
       ...prev,
-      address: item.address,
-      postal_code: item.postal_code,
-      city: item.city,
-      country: item.country,
+      address: suggestion.name,
+      postal_code: suggestion.postcode,
+      city: suggestion.city,
+      country: suggestion.country || "France",
     }));
 
-    // On ferme définitivement la liste
-    setSuggestions([]);
+    setAddressSuggestions([]);
     setShowSuggestions(false);
+  }
 
-    // Et surtout on bloque toute nouvelle recherche
-    // tant que l'utilisateur ne retouche pas le champ
-    setCanSearchAddress(false);
-  };
-
-  const handleSubmit = async (event) => {
-    event.preventDefault();
-    setError("");
-    setMessage("");
-    setShowSuggestions(false);
+  async function handleSubmit(e) {
+    e.preventDefault();
 
     try {
-      const data = await updateMe(form);
-      saveAuth(data.user, getToken());
-      setMessage("Informations mises à jour avec succès");
-    } catch (err) {
-      setError(err.message);
-    }
-  };
+      setMessage("");
+      setError("");
 
-  if (loading) {
-    return <p className="page-message">Chargement...</p>;
+      const result = await updateMe(form);
+
+      setMessage("Informations mises à jour avec succès");
+
+      if (result?.user) {
+        setForm({
+          nom: result.user.nom || "",
+          prenom: result.user.prenom || "",
+          email: result.user.email || "",
+          phone: result.user.phone || "",
+          address: result.user.address || "",
+          postal_code: result.user.postal_code || "",
+          city: result.user.city || "",
+          country: result.user.country || "",
+        });
+      }
+    } catch (err) {
+      setError(err.message || "Erreur lors de la mise à jour");
+    }
   }
 
   return (
     <main className="page">
-      <section className="auth-card">
+      <div className="auth-card">
         <h1>Mon profil</h1>
 
-        {error && <p className="page-message error">{error}</p>}
-        {message && <p className="page-message success">{message}</p>}
+        {message && <p className="product-detail__message">{message}</p>}
+        {error && <p className="error">{error}</p>}
 
         <form className="auth-form" onSubmit={handleSubmit}>
-          <input
-            type="text"
-            name="prenom"
-            placeholder="Prénom"
-            value={form.prenom}
-            onChange={handleChange}
-          />
-
           <input
             type="text"
             name="nom"
             placeholder="Nom"
             value={form.nom}
             onChange={handleChange}
+            autoComplete="family-name"
+          />
+
+          <input
+            type="text"
+            name="prenom"
+            placeholder="Prénom"
+            value={form.prenom}
+            onChange={handleChange}
+            autoComplete="given-name"
           />
 
           <input
@@ -172,6 +194,7 @@ export default function Profile() {
             placeholder="Email"
             value={form.email}
             onChange={handleChange}
+            autoComplete="email"
           />
 
           <input
@@ -180,68 +203,71 @@ export default function Profile() {
             placeholder="Téléphone"
             value={form.phone}
             onChange={handleChange}
+            autoComplete="tel"
           />
 
-          <div style={{ position: "relative" }}>
+          <div ref={containerRef} style={{ position: "relative" }}>
             <input
               type="text"
               name="address"
               placeholder="Adresse"
               value={form.address}
               onChange={handleChange}
-              autoComplete="off"
-              onBlur={() => {
-                setTimeout(() => setShowSuggestions(false), 150);
-              }}
               onFocus={() => {
-                if (
-                  canSearchAddress &&
-                  suggestions.length > 0 &&
-                  form.address.trim().length >= 3
-                ) {
+                if (addressSuggestions.length > 0) {
                   setShowSuggestions(true);
                 }
               }}
+              autoComplete="street-address"
             />
 
-            {isSearchingAddress && canSearchAddress && (
-              <div style={{ marginTop: "6px", fontSize: "0.9rem" }}>
-                Recherche d&apos;adresse...
+            {loadingSuggestions && form.address.trim().length >= 3 && (
+              <div
+                style={{
+                  marginTop: "6px",
+                  fontSize: "0.9rem",
+                  color: "#7a6661",
+                }}
+              >
+                Recherche d’adresses...
               </div>
             )}
 
-            {showSuggestions && suggestions.length > 0 && (
+            {showSuggestions && addressSuggestions.length > 0 && (
               <div
                 style={{
                   position: "absolute",
                   top: "100%",
                   left: 0,
                   right: 0,
-                  background: "#fff",
-                  border: "1px solid #ddd",
-                  borderRadius: "12px",
+                  zIndex: 20,
+                  background: "#fffdf9",
+                  border: "1px solid rgba(155, 111, 111, 0.16)",
+                  borderRadius: "16px",
+                  boxShadow: "0 12px 24px rgba(66, 41, 41, 0.08)",
                   marginTop: "6px",
                   overflow: "hidden",
-                  zIndex: 20,
-                  boxShadow: "0 10px 25px rgba(0,0,0,0.08)",
                 }}
               >
-                {suggestions.map((item, index) => (
+                {addressSuggestions.map((suggestion, index) => (
                   <button
-                    key={`${item.label}-${index}`}
+                    key={`${suggestion.label}-${index}`}
                     type="button"
-                    onMouseDown={(e) => e.preventDefault()}
-                    onClick={() => handleSelectAddress(item)}
+                    onClick={() => handleSelectSuggestion(suggestion)}
                     style={{
                       width: "100%",
                       textAlign: "left",
                       padding: "12px 14px",
                       border: "none",
-                      background: "#fff",
+                      background: "transparent",
                       cursor: "pointer",
+                      borderBottom:
+                        index !== addressSuggestions.length - 1
+                          ? "1px solid rgba(155, 111, 111, 0.08)"
+                          : "none",
                     }}
                   >
-                    {item.label}
+                    {suggestion.label}
                   </button>
                 ))}
               </div>
@@ -254,6 +280,7 @@ export default function Profile() {
             placeholder="Code postal"
             value={form.postal_code}
             onChange={handleChange}
+            autoComplete="postal-code"
           />
 
           <input
@@ -262,6 +289,7 @@ export default function Profile() {
             placeholder="Ville"
             value={form.city}
             onChange={handleChange}
+            autoComplete="address-level2"
           />
 
           <input
@@ -270,13 +298,14 @@ export default function Profile() {
             placeholder="Pays"
             value={form.country}
             onChange={handleChange}
+            autoComplete="country-name"
           />
 
-          <button className="product-detail__button" type="submit">
+          <button type="submit" className="product-detail__button">
             Enregistrer
           </button>
         </form>
-      </section>
+      </div>
     </main>
   );
 }
