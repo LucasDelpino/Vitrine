@@ -57,6 +57,30 @@ export async function register(payload) {
   return registerUser(payload);
 }
 
+export async function forgotPassword(email) {
+  const response = await fetch(`${API_URL}/forgot-password`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ email }),
+  });
+
+  return parseJson(response);
+}
+
+export async function resetPassword(token, password) {
+  const response = await fetch(`${API_URL}/reset-password`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ token, password }),
+  });
+
+  return parseJson(response);
+}
+
 export async function fetchMe() {
   const token = getToken();
 

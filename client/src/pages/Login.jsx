@@ -54,6 +54,10 @@ export default function Login({ refreshUser }) {
             onChange={handleChange}
           />
 
+          <Link to="/forgot-password" className="back-link">
+            Mot de passe oublié ?
+          </Link>
+
           <button className="product-detail__button" type="submit">
             Se connecter
           </button>

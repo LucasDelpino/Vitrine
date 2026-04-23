@@ -24,6 +24,26 @@ async function getTransporter() {
   return transporterPromise;
 }
 
+export async function sendResetPasswordEmail({ to, resetUrl }) {
+  const transporter = await getTransporter();
+
+  const info = await transporter.sendMail({
+    from: '"NéLégance" <no-reply@nelegance.local>',
+    to,
+    subject: "Réinitialisation de votre mot de passe",
+    html: `
+      <div style="font-family:Arial;">
+        <h2>Réinitialisation du mot de passe</h2>
+        <p>Cliquez sur le lien ci-dessous :</p>
+        <a href="${resetUrl}">${resetUrl}</a>
+        <p>Valable 1 heure.</p>
+      </div>
+    `,
+  });
+
+  return nodemailer.getTestMessageUrl(info);
+}
+
 export async function sendOrderPaidEmail({ to, order, items }) {
   const transporter = await getTransporter();
 
@@ -123,4 +143,28 @@ export async function sendOrderShippedEmail({ to, order, items }) {
   });
 
   return nodemailer.getTestMessageUrl(info);
+}
+
+export async function sendWelcomeEmail({ to, prenom }) {
+  const transporter = await getTransporter();
+
+  const info = await transporter.sendMail({
+    from: '"NéLégance" <no-reply@nelegance.local>',
+    to,
+    subject: "Bienvenue chez Nelegance ✨",
+    html: `
+      <div style="font-family:Arial,sans-serif;max-width:700px;margin:0 auto;color:#222;">
+        <h1>Bienvenue ${prenom} ✨</h1>
+        <p>Votre compte a bien été créé sur NéLégance.</p>
+        <p>Vous pouvez maintenant vous connecter et passer votre commande.</p>
+        <p>À bientôt sur NéLégance.</p>
+      </div>
+    `
+  });
+
+  const previewUrl = nodemailer.getTestMessageUrl(info);
+
+  console.log("📧 Aperçu email bienvenue :", previewUrl);
+
+  return previewUrl;
 }

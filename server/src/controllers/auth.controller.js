@@ -2,6 +2,9 @@ import bcrypt from "bcryptjs";
 import pool from "../config/db.js";
 import { generateToken } from "../utils/jwt.js";
 import { isValidEmail } from "../utils/validators.js";
+import crypto from "crypto";
+import { sendResetPasswordEmail } from "../services/mail.service.js";
+import { sendWelcomeEmail } from "../services/mail.service.js";
 
 const PASSWORD_REGEX =
   /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z\d]).{8,}$/;
@@ -27,6 +30,110 @@ function mapUser(row) {
 
 function isStrongPassword(password) {
   return PASSWORD_REGEX.test(String(password || ""));
+}
+
+export async function resetPassword(req, res) {
+  try {
+    const { token, password } = req.body;
+
+    if (!token || !password) {
+      return res.status(400).json({ error: "Données manquantes" });
+    }
+
+    if (!isStrongPassword(password)) {
+      return res.status(400).json({
+        error:
+          "Mot de passe trop faible",
+      });
+    }
+
+    const hashedToken = crypto
+      .createHash("sha256")
+      .update(token)
+      .digest("hex");
+
+    const [rows] = await pool.query(
+      `
+      SELECT * FROM users
+      WHERE reset_password_token = ?
+      AND reset_password_expires > NOW()
+      `,
+      [hashedToken]
+    );
+
+    if (rows.length === 0) {
+      return res.status(400).json({ error: "Token invalide ou expiré" });
+    }
+
+    const user = rows[0];
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    await pool.query(
+      `
+      UPDATE users
+      SET password = ?, reset_password_token = NULL, reset_password_expires = NULL
+      WHERE id = ?
+      `,
+      [hashedPassword, user.id]
+    );
+
+    return res.json({ message: "Mot de passe réinitialisé" });
+  } catch (error) {
+    console.error("Erreur resetPassword :", error);
+    return res.status(500).json({ error: "Erreur serveur" });
+  }
+}
+
+export async function forgotPassword(req, res) {
+  try {
+    const { email } = req.body;
+
+    if (!email) {
+      return res.status(400).json({ error: "Email requis" });
+    }
+
+    const [rows] = await pool.query(
+      "SELECT * FROM users WHERE email = ?",
+      [email]
+    );
+
+    if (rows.length === 0) {
+      return res.json({ message: "Si le compte existe, un email a été envoyé" });
+    }
+
+    const user = rows[0];
+
+    const token = crypto.randomBytes(32).toString("hex");
+    const hashedToken = crypto.createHash("sha256").update(token).digest("hex");
+
+    const expires = new Date(Date.now() + 60 * 60 * 1000); // 1h
+
+    await pool.query(
+      `
+      UPDATE users
+      SET reset_password_token = ?, reset_password_expires = ?
+      WHERE id = ?
+      `,
+      [hashedToken, expires, user.id]
+    );
+
+    const resetUrl = `http://localhost:5173/reset-password?token=${token}`;
+
+    const previewUrl = await sendResetPasswordEmail({
+      to: user.email,
+      resetUrl,
+    });
+
+    console.log("Lien reset envoyé :", previewUrl);
+
+    return res.json({
+      message: "Si le compte existe, un email a été envoyé",
+    });
+  } catch (error) {
+    console.error("Erreur forgotPassword :", error);
+    return res.status(500).json({ error: "Erreur serveur" });
+  }
 }
 
 export async function register(req, res) {
@@ -97,6 +204,13 @@ export async function register(req, res) {
     };
 
     const token = generateToken(user);
+
+    const previewUrl = await sendWelcomeEmail({
+      to: email,
+      prenom,
+    });
+
+    console.log("Aperçu email bienvenue :", previewUrl);
 
     return res.status(201).json({
       message: "Inscription réussie",

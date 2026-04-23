@@ -14,6 +14,8 @@ import AdminProducts from "./pages/AdminProducts.jsx";
 import Profile from "./pages/Profile.jsx";
 import { fetchCart } from "./services/cartApi.js";
 import { getUser } from "./utils/auth.js";
+import ForgotPassword from "./pages/ForgotPassword.jsx";
+import ResetPassword from "./pages/ResetPassword.jsx";
 
 function App() {
   const [cartCount, setCartCount] = useState(0);
@@ -63,6 +65,8 @@ function App() {
         <Route path="/admin/orders" element={<AdminOrders />} />
         <Route path="/admin/products" element={<AdminProducts />} />
         <Route path="/profile" element={<Profile />} />
+        <Route path="/forgot-password" element={<ForgotPassword />} />
+        <Route path="/reset-password" element={<ResetPassword />} />
       </Routes>
     </>
   );
