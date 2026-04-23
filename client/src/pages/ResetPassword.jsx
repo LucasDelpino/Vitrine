@@ -45,7 +45,7 @@ export default function ResetPassword() {
     try {
       setLoading(true);
       const data = await resetPassword(token, password);
-      setMessage(data.message || "Mot de passe réinitialisé avec succès.");
+      setMessage(data.message || "Mot de passe réinitialisé avec succès. Redirection vers la page de connexion...");
 
       setTimeout(() => {
         navigate("/login");

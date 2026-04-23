@@ -12,7 +12,11 @@ export function requireAuth(req, res, next) {
     return res.status(401).json({ error: "Non autorisé" });
   }
 
-  const token = authHeader.split(" ")[1];
+  const token = authHeader.slice(7).trim();
+
+  if (!token) {
+    return res.status(401).json({ error: "Non autorisé" });
+  }
 
   try {
     const decoded = jwt.verify(token, env.jwt.secret);
@@ -22,8 +26,12 @@ export function requireAuth(req, res, next) {
       role: normalizeRole(decoded.role),
     };
 
-    next();
-  } catch {
+    return next();
+  } catch (error) {
+    if (error?.name === "TokenExpiredError") {
+      return res.status(401).json({ error: "Session expirée" });
+    }
+
     return res.status(401).json({ error: "Token invalide" });
   }
 }
@@ -33,5 +41,5 @@ export function requireAdmin(req, res, next) {
     return res.status(403).json({ error: "Accès interdit" });
   }
 
-  next();
+  return next();
 }

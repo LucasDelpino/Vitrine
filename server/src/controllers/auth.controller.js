@@ -3,8 +3,14 @@ import pool from "../config/db.js";
 import { generateToken } from "../utils/jwt.js";
 import { isValidEmail } from "../utils/validators.js";
 import crypto from "crypto";
-import { sendResetPasswordEmail } from "../services/mail.service.js";
-import { sendWelcomeEmail } from "../services/mail.service.js";
+import {
+  sendResetPasswordEmail,
+  sendWelcomeEmail,
+} from "../services/mail.service.js";
+
+const loginAttempts = {};
+const MAX_ATTEMPTS = 5;
+const BLOCK_TIME = 15 * 60 * 1000;
 
 const PASSWORD_REGEX =
   /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z\d]).{8,}$/;
@@ -32,6 +38,43 @@ function isStrongPassword(password) {
   return PASSWORD_REGEX.test(String(password || ""));
 }
 
+function getClientKey(req, email = "") {
+  return `${req.ip}::${String(email).toLowerCase().trim()}`;
+}
+
+function isBlocked(key) {
+  const entry = loginAttempts[key];
+
+  if (!entry) {
+    return false;
+  }
+
+  if (entry.attempts < MAX_ATTEMPTS) {
+    return false;
+  }
+
+  const diff = Date.now() - entry.lastAttempt;
+  if (diff < BLOCK_TIME) {
+    return true;
+  }
+
+  delete loginAttempts[key];
+  return false;
+}
+
+function registerFailedAttempt(key) {
+  if (!loginAttempts[key]) {
+    loginAttempts[key] = { attempts: 0, lastAttempt: Date.now() };
+  }
+
+  loginAttempts[key].attempts += 1;
+  loginAttempts[key].lastAttempt = Date.now();
+}
+
+function clearAttempts(key) {
+  delete loginAttempts[key];
+}
+
 export async function resetPassword(req, res) {
   try {
     const { token, password } = req.body;
@@ -43,18 +86,16 @@ export async function resetPassword(req, res) {
     if (!isStrongPassword(password)) {
       return res.status(400).json({
         error:
-          "Mot de passe trop faible",
+          "Le mot de passe doit contenir au moins 8 caractères, une majuscule, une minuscule, un chiffre et un caractère spécial",
       });
     }
 
-    const hashedToken = crypto
-      .createHash("sha256")
-      .update(token)
-      .digest("hex");
+    const hashedToken = crypto.createHash("sha256").update(token).digest("hex");
 
     const [rows] = await pool.query(
       `
-      SELECT * FROM users
+      SELECT *
+      FROM users
       WHERE reset_password_token = ?
       AND reset_password_expires > NOW()
       `,
@@ -66,13 +107,15 @@ export async function resetPassword(req, res) {
     }
 
     const user = rows[0];
-
     const hashedPassword = await bcrypt.hash(password, 10);
 
     await pool.query(
       `
       UPDATE users
-      SET password = ?, reset_password_token = NULL, reset_password_expires = NULL
+      SET
+        password = ?,
+        reset_password_token = NULL,
+        reset_password_expires = NULL
       WHERE id = ?
       `,
       [hashedPassword, user.id]
@@ -93,33 +136,35 @@ export async function forgotPassword(req, res) {
       return res.status(400).json({ error: "Email requis" });
     }
 
-    const [rows] = await pool.query(
-      "SELECT * FROM users WHERE email = ?",
-      [email]
-    );
+    if (!isValidEmail(email)) {
+      return res.status(400).json({ error: "Email invalide" });
+    }
+
+    const [rows] = await pool.query("SELECT * FROM users WHERE email = ?", [email]);
 
     if (rows.length === 0) {
-      return res.json({ message: "Si le compte existe, un email a été envoyé" });
+      return res.json({
+        message: "Si le compte existe, un email a été envoyé",
+      });
     }
 
     const user = rows[0];
-
     const token = crypto.randomBytes(32).toString("hex");
     const hashedToken = crypto.createHash("sha256").update(token).digest("hex");
-
-    const expires = new Date(Date.now() + 60 * 60 * 1000); // 1h
+    const expires = new Date(Date.now() + 60 * 60 * 1000);
 
     await pool.query(
       `
       UPDATE users
-      SET reset_password_token = ?, reset_password_expires = ?
+      SET
+        reset_password_token = ?,
+        reset_password_expires = ?
       WHERE id = ?
       `,
       [hashedToken, expires, user.id]
     );
 
     const resetUrl = `http://localhost:5173/reset-password?token=${token}`;
-
     const previewUrl = await sendResetPasswordEmail({
       to: user.email,
       resetUrl,
@@ -164,16 +209,15 @@ export async function register(req, res) {
       });
     }
 
-    const [existing] = await pool.query(
-      "SELECT id FROM users WHERE email = ?",
-      [email]
-    );
+    const [existing] = await pool.query("SELECT id FROM users WHERE email = ?", [
+      email,
+    ]);
 
     if (existing.length > 0) {
       return res.status(400).json({ error: "Email déjà utilisé" });
     }
 
-    const hashedPassword = await bcrypt.hash(password, 10);
+    const hashedPassword = await bcrypt.hash(password, 12);
     const role = "user";
 
     const [result] = await pool.query(
@@ -235,12 +279,18 @@ export async function login(req, res) {
       return res.status(400).json({ error: "Email invalide" });
     }
 
-    const [rows] = await pool.query(
-      "SELECT * FROM users WHERE email = ?",
-      [email]
-    );
+    const key = getClientKey(req, email);
+
+    if (isBlocked(key)) {
+      return res.status(429).json({
+        error: "Trop de tentatives. Réessayez plus tard.",
+      });
+    }
+
+    const [rows] = await pool.query("SELECT * FROM users WHERE email = ?", [email]);
 
     if (rows.length === 0) {
+      registerFailedAttempt(key);
       return res.status(400).json({ error: "Identifiants invalides" });
     }
 
@@ -248,8 +298,11 @@ export async function login(req, res) {
     const isMatch = await bcrypt.compare(password, user.password);
 
     if (!isMatch) {
+      registerFailedAttempt(key);
       return res.status(400).json({ error: "Identifiants invalides" });
     }
+
+    clearAttempts(key);
 
     const safeUser = mapUser(user);
     const token = generateToken(safeUser);

@@ -44,7 +44,7 @@ export const handleStripeWebhook = async (req, res) => {
           [session.payment_intent || null, orderId]
         );
 
-        const user = await User.findByIdWithEmail(userId);
+        const user = await User.findById(userId);
         const order = await Order.getOne(orderId, userId);
         const items = await Order.getItems(orderId, userId);
 

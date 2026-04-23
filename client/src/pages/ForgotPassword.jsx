@@ -18,7 +18,7 @@ export default function ForgotPassword() {
       const data = await forgotPassword(email);
       setMessage(
         data.message ||
-          "Si le compte existe, un email de réinitialisation a été envoyé."
+          "Si un compte existe avec cet email, un lien de réinitialisation a été envoyé."
       );
       setEmail("");
     } catch (err) {
