@@ -3,6 +3,9 @@ import pool from "../config/db.js";
 import { generateToken } from "../utils/jwt.js";
 import { isValidEmail } from "../utils/validators.js";
 
+const PASSWORD_REGEX =
+  /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z\d]).{8,}$/;
+
 function normalizeRole(role) {
   return String(role || "user").toLowerCase().trim();
 }
@@ -22,9 +25,13 @@ function mapUser(row) {
   };
 }
 
+function isStrongPassword(password) {
+  return PASSWORD_REGEX.test(String(password || ""));
+}
+
 export async function register(req, res) {
   try {
-    const { nom, prenom, email, password } = req.body;
+    const { nom, prenom, email, password, confirmPassword } = req.body;
 
     if (!nom || !prenom || !email || !password) {
       return res.status(400).json({ error: "Champs requis" });
@@ -32,6 +39,22 @@ export async function register(req, res) {
 
     if (!isValidEmail(email)) {
       return res.status(400).json({ error: "Email invalide" });
+    }
+
+    if (
+      confirmPassword !== undefined &&
+      String(password) !== String(confirmPassword)
+    ) {
+      return res
+        .status(400)
+        .json({ error: "Les mots de passe ne correspondent pas" });
+    }
+
+    if (!isStrongPassword(password)) {
+      return res.status(400).json({
+        error:
+          "Le mot de passe doit contenir au moins 8 caractères, une majuscule, une minuscule, un chiffre et un caractère spécial",
+      });
     }
 
     const [existing] = await pool.query(

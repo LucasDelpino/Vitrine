@@ -3,6 +3,16 @@ import { buildApiUrl } from "../config/api.js";
 
 const API_URL = buildApiUrl("/auth");
 
+async function parseJson(response) {
+  const data = await response.json().catch(() => ({}));
+
+  if (!response.ok) {
+    throw new Error(data.error || "Erreur serveur");
+  }
+
+  return data;
+}
+
 export async function loginUser(email, password) {
   const response = await fetch(`${API_URL}/login`, {
     method: "POST",
@@ -12,31 +22,39 @@ export async function loginUser(email, password) {
     body: JSON.stringify({ email, password }),
   });
 
-  const data = await response.json();
-
-  if (!response.ok) {
-    throw new Error(data.error || "Erreur de connexion");
-  }
-
-  return data;
+  return parseJson(response);
 }
 
-export async function registerUser({ nom, prenom, email, password }) {
+export async function login(email, password) {
+  return loginUser(email, password);
+}
+
+export async function registerUser({
+  nom,
+  prenom,
+  email,
+  password,
+  confirmPassword,
+}) {
   const response = await fetch(`${API_URL}/register`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({ nom, prenom, email, password }),
+    body: JSON.stringify({
+      nom,
+      prenom,
+      email,
+      password,
+      confirmPassword,
+    }),
   });
 
-  const data = await response.json();
+  return parseJson(response);
+}
 
-  if (!response.ok) {
-    throw new Error(data.error || "Erreur d'inscription");
-  }
-
-  return data;
+export async function register(payload) {
+  return registerUser(payload);
 }
 
 export async function fetchMe() {
@@ -48,13 +66,7 @@ export async function fetchMe() {
     },
   });
 
-  const data = await response.json();
-
-  if (!response.ok) {
-    throw new Error(data.error || "Impossible de récupérer le profil");
-  }
-
-  return data;
+  return parseJson(response);
 }
 
 export async function getMe() {
@@ -73,11 +85,5 @@ export async function updateMe(profile) {
     body: JSON.stringify(profile),
   });
 
-  const data = await response.json();
-
-  if (!response.ok) {
-    throw new Error(data.error || "Impossible de mettre à jour le profil");
-  }
-
-  return data;
+  return parseJson(response);
 }

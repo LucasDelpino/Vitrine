@@ -1,85 +1,119 @@
 import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
-import { registerUser } from "../services/authApi.js";
+import { register } from "../services/authApi";
+import { useNavigate } from "react-router-dom";
 
 export default function Register() {
   const navigate = useNavigate();
+
   const [form, setForm] = useState({
     nom: "",
     prenom: "",
     email: "",
-    password: ""
+    password: "",
+    confirmPassword: "",
   });
+
   const [error, setError] = useState("");
 
-  const handleChange = (event) => {
-    setForm({
-      ...form,
-      [event.target.name]: event.target.value
-    });
+  const passwordRegex =
+    /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z\d]).{8,}$/;
+
+  const handleChange = (e) => {
+    setForm({ ...form, [e.target.name]: e.target.value });
   };
 
-  const handleSubmit = async (event) => {
-    event.preventDefault();
+  const handleSubmit = async (e) => {
+    e.preventDefault();
     setError("");
 
+    // Vérif mot de passe sécurisé
+    if (!passwordRegex.test(form.password)) {
+      return setError(
+        "Le mot de passe doit contenir au moins 8 caractères, une majuscule, une minuscule, un chiffre et un caractère spécial."
+      );
+    }
+
+    // Vérif confirmation
+    if (form.password !== form.confirmPassword) {
+      return setError("Les mots de passe ne correspondent pas.");
+    }
+
     try {
-      await registerUser(form);
+      await register({
+        nom: form.nom,
+        prenom: form.prenom,
+        email: form.email,
+        password: form.password,
+        confirmPassword: form.confirmPassword,
+      });
+
+      alert("Votre inscription est validée, vous pouvez vous connecter !");
       navigate("/login");
     } catch (err) {
-      setError(err.message);
+      setError(err.response?.data?.error || "Erreur lors de l'inscription");
     }
   };
 
   return (
-    <main className="page auth-page">
-      <div className="auth-card">
-        <h1>Inscription</h1>
+    <div className="page">
+      <form className="auth-form" onSubmit={handleSubmit}>
+        <h2>Inscription</h2>
 
-        <form onSubmit={handleSubmit} className="auth-form">
-          <input
-            type="text"
-            name="nom"
-            placeholder="Nom"
-            value={form.nom}
-            onChange={handleChange}
-          />
+        {error && <p style={{ color: "red" }}>{error}</p>}
 
-          <input
-            type="text"
-            name="prenom"
-            placeholder="Prénom"
-            value={form.prenom}
-            onChange={handleChange}
-          />
+        <input
+          name="nom"
+          placeholder="Nom"
+          value={form.nom}
+          onChange={handleChange}
+          required
+        />
 
-          <input
-            type="email"
-            name="email"
-            placeholder="Email"
-            value={form.email}
-            onChange={handleChange}
-          />
+        <input
+          name="prenom"
+          placeholder="Prénom"
+          value={form.prenom}
+          onChange={handleChange}
+          required
+        />
 
-          <input
-            type="password"
-            name="password"
-            placeholder="Mot de passe"
-            value={form.password}
-            onChange={handleChange}
-          />
+        <input
+          name="email"
+          type="email"
+          placeholder="Email"
+          value={form.email}
+          onChange={handleChange}
+          required
+        />
 
-          <button className="product-detail__button" type="submit">
-            Créer un compte
-          </button>
-        </form>
+        <input
+          name="password"
+          type="password"
+          placeholder="Mot de passe"
+          value={form.password}
+          onChange={handleChange}
+          required
+        />
 
-        {error && <p className="page-message error">{error}</p>}
+        <small style={{ fontSize: "12px", color: "#666" }}>
+          8 caractères minimum, avec majuscule, minuscule, chiffre et caractère spécial
+        </small>
 
-        <p>
-          Déjà inscrit ? <Link to="/login">Se connecter</Link>
+        <input
+          name="confirmPassword"
+          type="password"
+          placeholder="Confirmer le mot de passe"
+          value={form.confirmPassword}
+          onChange={handleChange}
+          required
+        />
+
+        <button type="submit">Créer un compte</button>
+
+        <p onClick={() => navigate("/login")} style={{ cursor: "pointer" }}>
+          Déjà inscrit ? Se connecter
         </p>
-      </div>
-    </main>
+      </form>
+    </div>
   );
 }
