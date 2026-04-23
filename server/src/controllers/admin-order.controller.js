@@ -34,7 +34,7 @@ export const updateOrderStatusAdmin = async (req, res) => {
       const order = await Order.getOneAdmin(id);
 
       if (order) {
-        const user = await User.findByIdWithEmail(order.user_id);
+        const user = await User.findById(order.user_id);
         const items = await Order.getItems(order.id, order.user_id);
 
         if (user?.email) {

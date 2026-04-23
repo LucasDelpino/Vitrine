@@ -13,6 +13,7 @@ import {
   deleteProductImage,
   setPrimaryProductImage,
 } from "../controllers/admin-product-image.controller.js";
+import { updateOrderStatusAdmin } from "../controllers/admin-order.controller.js";
 
 const router = express.Router();
 
@@ -28,5 +29,6 @@ router.delete("/products/:id", deleteProductAdmin);
 router.post("/products/:id/images", upload.single("image"), uploadProductImage);
 router.delete("/products/images/:imageId", deleteProductImage);
 router.patch("/products/:id/images/:imageId/primary", setPrimaryProductImage);
+router.patch("/orders/:id/status", updateOrderStatusAdmin);
 
 export default router;

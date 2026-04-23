@@ -6,6 +6,7 @@ class User {
       "SELECT * FROM users WHERE email = ? LIMIT 1",
       [email]
     );
+
     return rows[0] || null;
   }
 
@@ -17,7 +18,7 @@ class User {
         nom,
         prenom,
         email,
-        roles,
+        role,
         phone,
         address,
         postal_code,
@@ -34,13 +35,13 @@ class User {
     return rows[0] || null;
   }
 
-  static async create({ nom, prenom, email, password, roles = "user" }) {
+  static async create({ nom, prenom, email, password, role = "user" }) {
     const [result] = await pool.query(
       `
-      INSERT INTO users (nom, prenom, email, password, roles)
+      INSERT INTO users (nom, prenom, email, password, role)
       VALUES (?, ?, ?, ?, ?)
       `,
-      [nom, prenom, email, password, roles]
+      [nom, prenom, email, password, role]
     );
 
     return result.insertId;
@@ -50,7 +51,7 @@ class User {
     id,
     { nom, prenom, email, phone, address, postal_code, city, country }
   ) {
-    const [result] = await pool.query(
+    await pool.query(
       `
       UPDATE users
       SET
@@ -76,8 +77,6 @@ class User {
         id,
       ]
     );
-
-    console.log("User.updateProfile result =", result);
 
     return this.findById(id);
   }
