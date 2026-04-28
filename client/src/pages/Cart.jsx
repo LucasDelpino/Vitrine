@@ -4,11 +4,14 @@ import { createOrder } from "../services/orderApi.js";
 import { buildApiUrl } from "../config/api.js";
 import { getToken } from "../utils/auth.js";
 
+const FREE_SHIPPING_THRESHOLD = 50;
+
 const SHIPPING_OPTIONS = [
   {
     method: "home",
     label: "Livraison à domicile (avec suivi)",
-    description: "Expédition directement à votre adresse. Numéro de suivi fourni par mail.",
+    description:
+      "Expédition directement à votre adresse. Numéro de suivi fourni par mail.",
     price: 4.9,
   },
   {
@@ -41,6 +44,10 @@ async function parseError(response, fallbackMessage) {
   }
 }
 
+function getFreeShippingRemaining(productsTotal) {
+  return Math.max(0, FREE_SHIPPING_THRESHOLD - Number(productsTotal || 0));
+}
+
 export default function Cart({ refreshCartCount }) {
   const [cart, setCart] = useState([]);
   const [shippingMethod, setShippingMethod] = useState("home");
@@ -58,7 +65,9 @@ export default function Cart({ refreshCartCount }) {
     0
   );
 
-  const shippingTotal = selectedShipping ? selectedShipping.price : 0;
+  const freeShipping = productsTotal >= FREE_SHIPPING_THRESHOLD;
+  const remainingForFreeShipping = getFreeShippingRemaining(productsTotal);
+  const shippingTotal = freeShipping ? 0 : selectedShipping?.price || 0;
   const total = productsTotal + shippingTotal;
 
   useEffect(() => {
@@ -131,6 +140,7 @@ export default function Cart({ refreshCartCount }) {
     try {
       await clearCart();
       setCart([]);
+      setRelayPoint(null);
 
       if (typeof refreshCartCount === "function") {
         await refreshCartCount();
@@ -232,6 +242,29 @@ export default function Cart({ refreshCartCount }) {
             ))}
           </div>
 
+          <section
+            className="order-card"
+            style={{
+              marginTop: "24px",
+              border: freeShipping
+                ? "1px solid rgba(88, 128, 88, 0.35)"
+                : "1px solid rgba(155, 111, 111, 0.16)",
+            }}
+          >
+            {freeShipping ? (
+              <p style={{ margin: 0 }}>
+                🎁 <strong>Livraison offerte</strong> : votre panier dépasse{" "}
+                {formatPrice(FREE_SHIPPING_THRESHOLD)}.
+              </p>
+            ) : (
+              <p style={{ margin: 0 }}>
+                🎁 Encore{" "}
+                <strong>{formatPrice(remainingForFreeShipping)}</strong> pour
+                bénéficier de la livraison offerte.
+              </p>
+            )}
+          </section>
+
           <section className="order-card" style={{ marginTop: "24px" }}>
             <h2>Mode de livraison</h2>
 
@@ -260,7 +293,17 @@ export default function Cart({ refreshCartCount }) {
                   style={{ marginRight: "10px" }}
                 />
 
-                <strong>{option.label}</strong> — {formatPrice(option.price)}
+                <strong>{option.label}</strong> —{" "}
+                {freeShipping ? (
+                  <>
+                    <span style={{ textDecoration: "line-through" }}>
+                      {formatPrice(option.price)}
+                    </span>{" "}
+                    <strong>0.00 €</strong>
+                  </>
+                ) : (
+                  formatPrice(option.price)
+                )}
                 <br />
                 <span style={{ color: "#655350" }}>{option.description}</span>
               </label>
@@ -326,7 +369,8 @@ export default function Cart({ refreshCartCount }) {
             </p>
 
             <p>
-              <strong>Livraison :</strong> {formatPrice(shippingTotal)}
+              <strong>Livraison :</strong>{" "}
+              {freeShipping ? "Offerte" : formatPrice(shippingTotal)}
             </p>
 
             <h2>Total : {formatPrice(total)}</h2>

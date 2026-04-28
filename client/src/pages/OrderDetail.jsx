@@ -17,6 +17,7 @@ function formatOrderStatus(status) {
 function formatPaymentStatus(status) {
   const labels = {
     unpaid: "Non payé",
+    pending: "En attente",
     paid: "Payé",
     refunded: "Remboursé",
     failed: "Échoué",
@@ -26,7 +27,54 @@ function formatPaymentStatus(status) {
 }
 
 function formatPrice(value) {
-  return `${Number(value).toFixed(2)} €`;
+  return `${Number(value || 0).toFixed(2)} €`;
+}
+
+function renderShipping(order) {
+  if (order.shipping_method === "relay") {
+    return (
+      <>
+        <p>
+          <strong>Livraison :</strong> Mondial Relay
+        </p>
+        <p>
+          <strong>Point relais :</strong>{" "}
+          {order.relay_point_name || "Non renseigné"}
+        </p>
+        <p>
+          <strong>Adresse :</strong>{" "}
+          {order.relay_point_address || "Non renseignée"}
+        </p>
+        <p>
+          <strong>Ville :</strong>{" "}
+          {[order.relay_point_postal_code, order.relay_point_city]
+            .filter(Boolean)
+            .join(" ") || "Non renseignée"}
+        </p>
+      </>
+    );
+  }
+
+  return (
+    <>
+      <p>
+        <strong>Livraison :</strong> À domicile
+      </p>
+      <p>
+        <strong>Adresse :</strong>{" "}
+        {order.shipping_address_line1 || "Non renseignée"}
+      </p>
+      <p>
+        <strong>Ville :</strong>{" "}
+        {[order.shipping_postal_code, order.shipping_city]
+          .filter(Boolean)
+          .join(" ") || "Non renseignée"}
+      </p>
+      <p>
+        <strong>Pays :</strong> {order.shipping_country || "FR"}
+      </p>
+    </>
+  );
 }
 
 export default function OrderDetail() {
@@ -84,15 +132,21 @@ export default function OrderDetail() {
         <p>
           <strong>Référence :</strong> {order.sale_reference}
         </p>
+
         <p>
           <strong>Statut :</strong> {formatOrderStatus(order.status)}
         </p>
+
         <p>
           <strong>Paiement :</strong> {formatPaymentStatus(order.payment_status)}
         </p>
+
         <p>
           <strong>Total :</strong> {formatPrice(order.total)}
         </p>
+
+        {renderShipping(order)}
+
         <p>
           <strong>Date :</strong>{" "}
           {order.created_at

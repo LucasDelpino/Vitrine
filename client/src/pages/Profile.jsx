@@ -302,7 +302,7 @@ export default function Profile() {
           />
 
           <button type="submit" className="product-detail__button">
-            Enregistrer
+            Modifier mes informations
           </button>
         </form>
       </div>

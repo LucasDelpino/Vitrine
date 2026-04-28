@@ -16,6 +16,7 @@ function formatOrderStatus(status) {
 function formatPaymentStatus(status) {
   const labels = {
     unpaid: "Non payé",
+    pending: "En attente",
     paid: "Payé",
     refunded: "Remboursé",
     failed: "Échoué",
@@ -25,7 +26,25 @@ function formatPaymentStatus(status) {
 }
 
 function formatPrice(value) {
-  return `${Number(value).toFixed(2)} €`;
+  return `${Number(value || 0).toFixed(2)} €`;
+}
+
+function formatShipping(order) {
+  if (order.shipping_method === "relay") {
+    const relayName = order.relay_point_name || "Point relais non renseigné";
+    const relayCity = [order.relay_point_postal_code, order.relay_point_city]
+      .filter(Boolean)
+      .join(" ");
+
+    return `Mondial Relay : ${relayName}${relayCity ? ` - ${relayCity}` : ""}`;
+  }
+
+  const address = order.shipping_address_line1 || "Adresse non renseignée";
+  const city = [order.shipping_postal_code, order.shipping_city]
+    .filter(Boolean)
+    .join(" ");
+
+  return `À domicile : ${address}${city ? ` - ${city}` : ""}`;
 }
 
 export default function Orders() {
@@ -77,6 +96,10 @@ export default function Orders() {
 
               <p>
                 <strong>Total :</strong> {formatPrice(order.total)}
+              </p>
+
+              <p>
+                <strong>Livraison :</strong> {formatShipping(order)}
               </p>
 
               <p>

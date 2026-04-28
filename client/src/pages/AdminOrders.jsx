@@ -11,6 +11,11 @@ const STATUS_OPTIONS = [
   { value: "cancelled", label: "Annulée" },
 ];
 
+const DEFAULT_TRACKING_URLS = {
+  home: "https://www.laposte.fr/outils/suivre-vos-envois?code=",
+  relay: "https://www.mondialrelay.fr/suivi-de-colis/?numeroExpedition=",
+};
+
 function formatOrderStatus(status) {
   const labels = {
     pending: "En attente",
@@ -25,6 +30,7 @@ function formatOrderStatus(status) {
 function formatPaymentStatus(status) {
   const labels = {
     unpaid: "Non payé",
+    pending: "En attente",
     paid: "Payé",
     refunded: "Remboursé",
     failed: "Échoué",
@@ -41,6 +47,18 @@ function isRelayOrder(order) {
   return order.shipping_method === "relay";
 }
 
+function isHomeOrder(order) {
+  return order.shipping_method === "home";
+}
+
+function buildDefaultTrackingUrl(order, trackingNumber = "") {
+  const baseUrl = isRelayOrder(order)
+    ? DEFAULT_TRACKING_URLS.relay
+    : DEFAULT_TRACKING_URLS.home;
+
+  return trackingNumber ? `${baseUrl}${trackingNumber}` : baseUrl;
+}
+
 function getRelaySummary(order) {
   const parts = [
     order.relay_point_name,
@@ -52,6 +70,16 @@ function getRelaySummary(order) {
   ].filter(Boolean);
 
   return parts.length > 0 ? parts.join(" - ") : "Point relais non renseigné";
+}
+
+function getHomeAddressSummary(order) {
+  const parts = [
+    order.shipping_address_line1,
+    [order.shipping_postal_code, order.shipping_city].filter(Boolean).join(" "),
+    order.shipping_country,
+  ].filter(Boolean);
+
+  return parts.length > 0 ? parts.join(" - ") : "Adresse non renseignée";
 }
 
 export default function AdminOrders() {
@@ -74,9 +102,12 @@ export default function AdminOrders() {
 
       const drafts = {};
       safeOrders.forEach((order) => {
+        const trackingNumber = order.tracking_number || "";
+
         drafts[order.id] = {
-          trackingNumber: order.tracking_number || "",
-          trackingUrl: order.tracking_url || "",
+          trackingNumber,
+          trackingUrl:
+            order.tracking_url || buildDefaultTrackingUrl(order, trackingNumber),
         };
       });
 
@@ -92,14 +123,31 @@ export default function AdminOrders() {
     loadOrders();
   }, []);
 
-  const handleTrackingChange = (orderId, field, value) => {
-    setTrackingDrafts((prev) => ({
-      ...prev,
-      [orderId]: {
-        ...(prev[orderId] || {}),
-        [field]: value,
-      },
-    }));
+  const handleTrackingChange = (order, field, value) => {
+    setTrackingDrafts((prev) => {
+      const current = prev[order.id] || {
+        trackingNumber: "",
+        trackingUrl: buildDefaultTrackingUrl(order),
+      };
+
+      if (field === "trackingNumber") {
+        return {
+          ...prev,
+          [order.id]: {
+            trackingNumber: value,
+            trackingUrl: buildDefaultTrackingUrl(order, value),
+          },
+        };
+      }
+
+      return {
+        ...prev,
+        [order.id]: {
+          ...current,
+          [field]: value,
+        },
+      };
+    });
   };
 
   const handleStatusChange = async (orderId, newStatus) => {
@@ -130,6 +178,23 @@ export default function AdminOrders() {
     window.open(trackingUrl, "_blank", "noopener,noreferrer");
   };
 
+  const handleOpenShippingTool = (order) => {
+    if (isRelayOrder(order)) {
+      window.open(
+        "https://www.mondialrelay.fr/",
+        "_blank",
+        "noopener,noreferrer"
+      );
+      return;
+    }
+
+    window.open(
+      "https://www.laposte.fr/mon-timbre-en-ligne",
+      "_blank",
+      "noopener,noreferrer"
+    );
+  };
+
   if (loading) {
     return (
       <main className="page">
@@ -152,11 +217,12 @@ export default function AdminOrders() {
         {orders.map((order) => {
           const draft = trackingDrafts[order.id] || {
             trackingNumber: "",
-            trackingUrl: "",
+            trackingUrl: buildDefaultTrackingUrl(order),
           };
 
           const updating = updatingOrderId === order.id;
           const relayOrder = isRelayOrder(order);
+          const homeOrder = isHomeOrder(order);
 
           return (
             <article key={order.id} className="order-card">
@@ -168,18 +234,37 @@ export default function AdminOrders() {
                 <strong>Client :</strong> {order.prenom} {order.nom}
               </p>
 
-              {order.shipping_method === "home" && order.shipping_address_line1 && (
-                <div style={{ marginTop: "10px" }}>
-                  <strong>Adresse livraison :</strong><br />
-                  {order.shipping_address_line1}<br />
-                  {order.shipping_postal_code} {order.shipping_city}<br />
-                  {order.shipping_country}
-                </div>
-              )}
-
               <p>
                 <strong>Email :</strong> {order.email}
               </p>
+
+              {homeOrder && (
+                <div
+                  style={{
+                    margin: "12px 0",
+                    padding: "14px",
+                    border: "1px solid rgba(155, 111, 111, 0.16)",
+                    borderRadius: "16px",
+                    background: "rgba(255, 255, 255, 0.55)",
+                  }}
+                >
+                  <p>
+                    <strong>Adresse de livraison domicile :</strong>
+                  </p>
+                  <p>
+                    {order.shipping_address_line1 || "Adresse non renseignée"}
+                  </p>
+                  <p>
+                    {[order.shipping_postal_code, order.shipping_city]
+                      .filter(Boolean)
+                      .join(" ") || "Ville non renseignée"}
+                  </p>
+                  <p>{order.shipping_country || "FR"}</p>
+                  <p style={{ marginTop: "8px" }}>
+                    <strong>Résumé :</strong> {getHomeAddressSummary(order)}
+                  </p>
+                </div>
+              )}
 
               <p>
                 <strong>Sous-total :</strong> {formatPrice(order.subtotal)}
@@ -188,7 +273,9 @@ export default function AdminOrders() {
               <p>
                 <strong>Livraison :</strong>{" "}
                 {order.shipping_label || "Non renseigné"} —{" "}
-                {formatPrice(order.shipping_amount)}
+                {Number(order.shipping_amount) === 0
+                  ? "Offerte"
+                  : formatPrice(order.shipping_amount)}
               </p>
 
               {relayOrder && (
@@ -228,8 +315,7 @@ export default function AdminOrders() {
                   </p>
 
                   <p>
-                    <strong>Pays :</strong>{" "}
-                    {order.relay_point_country || "FR"}
+                    <strong>Pays :</strong> {order.relay_point_country || "FR"}
                   </p>
 
                   <p style={{ marginTop: "8px" }}>
@@ -253,20 +339,26 @@ export default function AdminOrders() {
               </p>
 
               <div className="auth-form" style={{ marginTop: "12px" }}>
+                <button
+                  type="button"
+                  className="admin-secondary-button"
+                  onClick={() => handleOpenShippingTool(order)}
+                >
+                  {relayOrder
+                    ? "Ouvrir Mondial Relay"
+                    : "Préparer l’envoi La Poste"}
+                </button>
+
                 <input
                   type="text"
                   placeholder={
                     relayOrder
                       ? "Numéro de suivi Mondial Relay"
-                      : "Numéro de suivi"
+                      : "Numéro de suivi La Poste"
                   }
                   value={draft.trackingNumber}
                   onChange={(e) =>
-                    handleTrackingChange(
-                      order.id,
-                      "trackingNumber",
-                      e.target.value
-                    )
+                    handleTrackingChange(order, "trackingNumber", e.target.value)
                   }
                 />
 
@@ -275,15 +367,11 @@ export default function AdminOrders() {
                   placeholder={
                     relayOrder
                       ? "Lien de suivi Mondial Relay"
-                      : "Lien de suivi"
+                      : "Lien de suivi La Poste"
                   }
                   value={draft.trackingUrl}
                   onChange={(e) =>
-                    handleTrackingChange(
-                      order.id,
-                      "trackingUrl",
-                      e.target.value
-                    )
+                    handleTrackingChange(order, "trackingUrl", e.target.value)
                   }
                 />
 

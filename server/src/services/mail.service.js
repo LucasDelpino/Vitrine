@@ -164,7 +164,7 @@ export async function sendResetPasswordEmail({ to, resetUrl }) {
   const transporter = await getTransporter();
 
   const info = await transporter.sendMail({
-    from: '"NéLégance" <no-reply@nelegance.local>',
+    from: '"Nelegance" <no-reply@nelegance.local>',
     to,
     subject: "Réinitialisation de votre mot de passe",
     html: `
@@ -188,7 +188,7 @@ export async function sendOrderPaidEmail({ to, order, items }) {
   const transporter = await getTransporter();
 
   const info = await transporter.sendMail({
-    from: '"NéLégance" <no-reply@nelegance.local>',
+    from: '"Nelegance" <no-reply@nelegance.local>',
     to,
     subject: `Confirmation de paiement - ${order.sale_reference}`,
     html: `
@@ -222,7 +222,7 @@ export async function sendOrderShippedEmail({ to, order, items }) {
   const transporter = await getTransporter();
 
   const info = await transporter.sendMail({
-    from: '"NéLégance" <no-reply@nelegance.local>',
+    from: '"Nelegance" <no-reply@nelegance.local>',
     to,
     subject: `Votre commande a été expédiée - ${order.sale_reference}`,
     html: `
@@ -249,15 +249,15 @@ export async function sendWelcomeEmail({ to, prenom }) {
   const transporter = await getTransporter();
 
   const info = await transporter.sendMail({
-    from: '"NéLégance" <no-reply@nelegance.local>',
+    from: '"Nelegance" <no-reply@nelegance.local>',
     to,
-    subject: "Bienvenue chez NéLégance ✨",
+    subject: "Bienvenue chez Nelegance ✨",
     html: `
       <div style="font-family:Arial,sans-serif;max-width:700px;margin:0 auto;color:#222;">
         <h1>Bienvenue ${prenom} ✨</h1>
-        <p>Votre compte a bien été créé sur NéLégance.</p>
+        <p>Votre compte a bien été créé sur Nelegance.</p>
         <p>Vous pouvez maintenant vous connecter et passer votre commande.</p>
-        <p>À bientôt sur NéLégance.</p>
+        <p>À bientôt sur Nelegance.</p>
       </div>
     `,
   });

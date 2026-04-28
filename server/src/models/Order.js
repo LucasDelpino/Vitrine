@@ -1,6 +1,8 @@
 import pool from "../config/db.js";
 import User from "./User.js";
 
+export const FREE_SHIPPING_THRESHOLD = 50;
+
 export const SHIPPING_METHODS = {
   home: {
     method: "home",
@@ -9,14 +11,27 @@ export const SHIPPING_METHODS = {
   },
   relay: {
     method: "relay",
-    label: "Livraison en point relais",
+    label: "Livraison en point relais Mondial Relay",
     amount: 3.9,
   },
 };
 
-function getShippingConfig(shippingMethod) {
-  const method = shippingMethod || "home";
+function getShippingMethod(method) {
   return SHIPPING_METHODS[method] || SHIPPING_METHODS.home;
+}
+
+function computeShipping(subtotal, method) {
+  const shipping = getShippingMethod(method);
+
+  if (Number(subtotal) >= FREE_SHIPPING_THRESHOLD) {
+    return {
+      ...shipping,
+      amount: 0,
+      label: `${shipping.label} (offerte)`,
+    };
+  }
+
+  return shipping;
 }
 
 class Order {
@@ -26,7 +41,6 @@ class Order {
     try {
       await connection.beginTransaction();
 
-      const shipping = getShippingConfig(options.shippingMethod);
       const relay = options.relayPoint || null;
       const user = await User.findById(userId);
 
@@ -57,7 +71,7 @@ class Order {
       }
 
       for (const item of cartItems) {
-        if (item.stock < item.quantity) {
+        if (Number(item.stock) < Number(item.quantity)) {
           throw new Error(`Stock insuffisant pour ${item.name}`);
         }
       }
@@ -67,6 +81,7 @@ class Order {
         0
       );
 
+      const shipping = computeShipping(subtotal, options.shippingMethod);
       const shippingAmount = Number(shipping.amount);
       const total = subtotal + shippingAmount;
       const saleReference = `VENTE-${Date.now()}`;
@@ -125,7 +140,7 @@ class Order {
           relay?.address || null,
           relay?.postal_code || relay?.postalCode || null,
           relay?.city || null,
-          relay?.country || null,
+          relay?.country || "FR",
         ]
       );
 
