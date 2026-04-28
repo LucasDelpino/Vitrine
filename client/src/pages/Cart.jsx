@@ -6,6 +6,22 @@ import {
 } from "../services/cartApi.js";
 import { buildApiUrl } from "../config/api.js";
 import { getToken } from "../utils/auth.js";
+import { createOrder } from "../services/orderApi.js";
+
+const SHIPPING_OPTIONS = [
+  {
+    method: "home",
+    label: "Livraison à domicile (avec suivi)",
+    description: "Expédition directement à votre adresse. Numéro de suivi fourni par mail.",
+    price: 4.9,
+  },
+  {
+    method: "relay",
+    label: "Livraison en point relais",
+    description: "Livraison dans un point relais proche de chez vous.",
+    price: 3.9,
+  },
+];
 
 function getCheckoutHeaders() {
   const token = getToken();
@@ -25,8 +41,13 @@ async function parseError(response, fallbackMessage) {
   }
 }
 
+function formatPrice(value) {
+  return `${Number(value || 0).toFixed(2)} €`;
+}
+
 export default function Cart({ refreshCartCount }) {
   const [cart, setCart] = useState([]);
+  const [selectedShippingMethod, setSelectedShippingMethod] = useState("home");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [checkoutLoading, setCheckoutLoading] = useState(false);
@@ -34,6 +55,18 @@ export default function Cart({ refreshCartCount }) {
   useEffect(() => {
     loadCart();
   }, []);
+
+  const selectedShipping = SHIPPING_OPTIONS.find(
+    (option) => option.method === selectedShippingMethod
+  );
+
+  const productsTotal = cart.reduce(
+    (sum, item) => sum + Number(item.price) * Number(item.quantity),
+    0
+  );
+
+  const shippingTotal = selectedShipping ? selectedShipping.price : 0;
+  const total = productsTotal + shippingTotal;
 
   const loadCart = async () => {
     try {
@@ -74,11 +107,6 @@ export default function Cart({ refreshCartCount }) {
     }
   };
 
-  const total = cart.reduce(
-    (sum, item) => sum + Number(item.price) * item.quantity,
-    0
-  );
-
   const handleCheckout = async () => {
     try {
       setCheckoutLoading(true);
@@ -89,45 +117,26 @@ export default function Cart({ refreshCartCount }) {
         throw new Error("Vous devez être connecté pour payer");
       }
 
-      // 1. Créer la commande côté backend
-      const orderResponse = await fetch(buildApiUrl("/orders"), {
-        method: "POST",
-        headers: getCheckoutHeaders(),
-      });
-
-      if (!orderResponse.ok) {
-        throw new Error(
-          await parseError(orderResponse, "Erreur création commande")
-        );
+      if (!selectedShippingMethod) {
+        throw new Error("Veuillez choisir un mode de livraison");
       }
 
-      const orderData = await orderResponse.json();
+      const orderData = await createOrder({
+        shippingMethod: selectedShippingMethod,
+      });
+
       const orderId = orderData?.order?.id;
 
       if (!orderId) {
         throw new Error("Commande invalide");
       }
 
-      // 2. Construire les lignes Stripe à partir du panier courant
-      const items = cart.map((item) => ({
-        price_data: {
-          currency: "eur",
-          product_data: {
-            name: item.name,
-          },
-          unit_amount: Math.round(Number(item.price) * 100),
-        },
-        quantity: item.quantity,
-      }));
-
-      // 3. Créer la session Stripe
       const stripeResponse = await fetch(
         buildApiUrl("/stripe/create-checkout-session"),
         {
           method: "POST",
           headers: getCheckoutHeaders(),
           body: JSON.stringify({
-            items,
             orderId,
           }),
         }
@@ -169,26 +178,86 @@ export default function Cart({ refreshCartCount }) {
         <p>Votre panier est vide</p>
       ) : (
         <>
-          {cart.map((item) => (
-            <div key={item.product_id}>
-              <p>{item.name}</p>
-              <p>
-                {item.quantity} × {Number(item.price).toFixed(2)} €
-              </p>
+          <div className="orders-list">
+            {cart.map((item) => (
+              <article key={item.product_id} className="order-card">
+                <p>
+                  <strong>{item.name}</strong>
+                </p>
+                <p>
+                  {item.quantity} × {formatPrice(item.price)}
+                </p>
 
-              <button onClick={() => handleRemove(item.product_id)}>
-                Supprimer
-              </button>
-            </div>
-          ))}
+                <button
+                  type="button"
+                  className="admin-delete-button"
+                  onClick={() => handleRemove(item.product_id)}
+                >
+                  Supprimer
+                </button>
+              </article>
+            ))}
+          </div>
 
-          <h2>Total : {total.toFixed(2)} €</h2>
+          <section className="order-card" style={{ marginTop: "24px" }}>
+            <h2>Mode de livraison</h2>
 
-          <button onClick={handleCheckout} disabled={checkoutLoading}>
-            {checkoutLoading ? "Chargement..." : "Payer"}
+            {SHIPPING_OPTIONS.map((option) => (
+              <label
+                key={option.method}
+                style={{
+                  display: "block",
+                  padding: "12px",
+                  marginBottom: "10px",
+                  border: "1px solid rgba(155, 111, 111, 0.16)",
+                  borderRadius: "16px",
+                  cursor: "pointer",
+                }}
+              >
+                <input
+                  type="radio"
+                  name="shippingMethod"
+                  value={option.method}
+                  checked={selectedShippingMethod === option.method}
+                  onChange={(e) => setSelectedShippingMethod(e.target.value)}
+                  style={{ marginRight: "10px" }}
+                />
+
+                <strong>{option.label}</strong> — {formatPrice(option.price)}
+                <br />
+                <span style={{ color: "#655350" }}>{option.description}</span>
+              </label>
+            ))}
+          </section>
+
+          <section className="order-card" style={{ marginTop: "24px" }}>
+            <p>
+              <strong>Sous-total produits :</strong>{" "}
+              {formatPrice(productsTotal)}
+            </p>
+            <p>
+              <strong>Livraison :</strong> {formatPrice(shippingTotal)}
+            </p>
+            <h2>Total : {formatPrice(total)}</h2>
+          </section>
+
+          <button
+            type="button"
+            className="product-detail__button"
+            onClick={handleCheckout}
+            disabled={checkoutLoading}
+          >
+            {checkoutLoading ? "Redirection..." : "Payer"}
           </button>
 
-          <button onClick={handleClear}>Vider le panier</button>
+          <button
+            type="button"
+            className="admin-secondary-button"
+            onClick={handleClear}
+            style={{ marginLeft: "10px" }}
+          >
+            Vider le panier
+          </button>
         </>
       )}
     </div>

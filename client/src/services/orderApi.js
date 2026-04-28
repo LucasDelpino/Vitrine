@@ -12,19 +12,24 @@ function getAuthHeaders() {
   };
 }
 
-export async function createOrder() {
-  const response = await fetch(API_URL, {
-    method: "POST",
-    headers: getAuthHeaders(),
-  });
-
-  const data = await response.json();
+async function parseJson(response, fallbackMessage) {
+  const data = await response.json().catch(() => ({}));
 
   if (!response.ok) {
-    throw new Error(data.error || "Impossible de créer la commande");
+    throw new Error(data.error || fallbackMessage);
   }
 
   return data;
+}
+
+export async function createOrder({ shippingMethod }) {
+  const response = await fetch(API_URL, {
+    method: "POST",
+    headers: getAuthHeaders(),
+    body: JSON.stringify({ shippingMethod }),
+  });
+
+  return parseJson(response, "Impossible de créer la commande");
 }
 
 export async function fetchMyOrders() {
@@ -32,13 +37,7 @@ export async function fetchMyOrders() {
     headers: getAuthHeaders(),
   });
 
-  const data = await response.json();
-
-  if (!response.ok) {
-    throw new Error(data.error || "Impossible de récupérer les commandes");
-  }
-
-  return data;
+  return parseJson(response, "Impossible de récupérer les commandes");
 }
 
 export async function fetchOrderById(orderId) {
@@ -46,13 +45,7 @@ export async function fetchOrderById(orderId) {
     headers: getAuthHeaders(),
   });
 
-  const data = await response.json();
-
-  if (!response.ok) {
-    throw new Error(data.error || "Impossible de récupérer la commande");
-  }
-
-  return data;
+  return parseJson(response, "Impossible de récupérer la commande");
 }
 
 export async function fetchOrderItems(orderId) {
@@ -60,11 +53,5 @@ export async function fetchOrderItems(orderId) {
     headers: getAuthHeaders(),
   });
 
-  const data = await response.json();
-
-  if (!response.ok) {
-    throw new Error(data.error || "Impossible de récupérer les produits");
-  }
-
-  return data;
+  return parseJson(response, "Impossible de récupérer les produits");
 }
