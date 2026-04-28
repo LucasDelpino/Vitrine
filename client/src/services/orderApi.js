@@ -22,11 +22,14 @@ async function parseJson(response, fallbackMessage) {
   return data;
 }
 
-export async function createOrder({ shippingMethod }) {
+export async function createOrder({ shippingMethod, relayPoint = null }) {
   const response = await fetch(API_URL, {
     method: "POST",
     headers: getAuthHeaders(),
-    body: JSON.stringify({ shippingMethod }),
+    body: JSON.stringify({
+      shippingMethod,
+      relayPoint,
+    }),
   });
 
   return parseJson(response, "Impossible de créer la commande");

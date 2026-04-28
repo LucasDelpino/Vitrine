@@ -1,12 +1,8 @@
 import { useEffect, useState } from "react";
-import {
-  fetchCart,
-  removeFromCart,
-  clearCart,
-} from "../services/cartApi.js";
+import { fetchCart, removeFromCart, clearCart } from "../services/cartApi.js";
+import { createOrder } from "../services/orderApi.js";
 import { buildApiUrl } from "../config/api.js";
 import { getToken } from "../utils/auth.js";
-import { createOrder } from "../services/orderApi.js";
 
 const SHIPPING_OPTIONS = [
   {
@@ -17,11 +13,15 @@ const SHIPPING_OPTIONS = [
   },
   {
     method: "relay",
-    label: "Livraison en point relais",
-    description: "Livraison dans un point relais proche de chez vous.",
+    label: "Livraison en point relais Mondial Relay",
+    description: "Choisissez un point relais proche de chez vous.",
     price: 3.9,
   },
 ];
+
+function formatPrice(value) {
+  return `${Number(value || 0).toFixed(2)} €`;
+}
 
 function getCheckoutHeaders() {
   const token = getToken();
@@ -41,23 +41,16 @@ async function parseError(response, fallbackMessage) {
   }
 }
 
-function formatPrice(value) {
-  return `${Number(value || 0).toFixed(2)} €`;
-}
-
 export default function Cart({ refreshCartCount }) {
   const [cart, setCart] = useState([]);
-  const [selectedShippingMethod, setSelectedShippingMethod] = useState("home");
+  const [shippingMethod, setShippingMethod] = useState("home");
+  const [relayPoint, setRelayPoint] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
   const [checkoutLoading, setCheckoutLoading] = useState(false);
-
-  useEffect(() => {
-    loadCart();
-  }, []);
+  const [error, setError] = useState("");
 
   const selectedShipping = SHIPPING_OPTIONS.find(
-    (option) => option.method === selectedShippingMethod
+    (option) => option.method === shippingMethod
   );
 
   const productsTotal = cart.reduce(
@@ -68,7 +61,11 @@ export default function Cart({ refreshCartCount }) {
   const shippingTotal = selectedShipping ? selectedShipping.price : 0;
   const total = productsTotal + shippingTotal;
 
-  const loadCart = async () => {
+  useEffect(() => {
+    loadCart();
+  }, []);
+
+  async function loadCart() {
     try {
       setLoading(true);
       setError("");
@@ -79,9 +76,45 @@ export default function Cart({ refreshCartCount }) {
     } finally {
       setLoading(false);
     }
-  };
+  }
 
-  const handleRemove = async (productId) => {
+  function handleShippingChange(method) {
+    setShippingMethod(method);
+
+    if (method !== "relay") {
+      setRelayPoint(null);
+    }
+  }
+
+  function handleOpenRelayWidget() {
+    if (!window.$ || !window.$.fn?.MR_ParcelShopPicker) {
+      alert("Widget Mondial Relay non chargé. Vérifie les scripts dans index.html.");
+      return;
+    }
+
+    window.$("#relay-widget").html("");
+
+    window.$("#relay-widget").MR_ParcelShopPicker({
+      Target: "#relay-widget",
+      Brand: "CC22",
+      Country: "FR",
+      Responsive: true,
+      OnParcelShopSelected: function (data) {
+        const point = {
+          id: data.Num || "",
+          name: data.Nom || "",
+          address: data.Adresse1 || "",
+          postal_code: data.CP || "",
+          city: data.Ville || "",
+          country: data.Pays || "FR",
+        };
+
+        setRelayPoint(point);
+      },
+    });
+  }
+
+  async function handleRemove(productId) {
     try {
       await removeFromCart(productId);
       await loadCart();
@@ -92,9 +125,9 @@ export default function Cart({ refreshCartCount }) {
     } catch (err) {
       alert(err.message || "Impossible de supprimer le produit");
     }
-  };
+  }
 
-  const handleClear = async () => {
+  async function handleClear() {
     try {
       await clearCart();
       setCart([]);
@@ -105,30 +138,31 @@ export default function Cart({ refreshCartCount }) {
     } catch (err) {
       alert(err.message || "Impossible de vider le panier");
     }
-  };
+  }
 
-  const handleCheckout = async () => {
+  async function handleCheckout() {
     try {
       setCheckoutLoading(true);
 
       const token = getToken();
 
       if (!token) {
-        throw new Error("Vous devez être connecté pour payer");
+        throw new Error("Vous devez être connecté pour payer.");
       }
 
-      if (!selectedShippingMethod) {
-        throw new Error("Veuillez choisir un mode de livraison");
+      if (shippingMethod === "relay" && !relayPoint) {
+        throw new Error("Veuillez sélectionner un point relais Mondial Relay.");
       }
 
       const orderData = await createOrder({
-        shippingMethod: selectedShippingMethod,
+        shippingMethod,
+        relayPoint: shippingMethod === "relay" ? relayPoint : null,
       });
 
       const orderId = orderData?.order?.id;
 
       if (!orderId) {
-        throw new Error("Commande invalide");
+        throw new Error("Commande invalide.");
       }
 
       const stripeResponse = await fetch(
@@ -136,9 +170,7 @@ export default function Cart({ refreshCartCount }) {
         {
           method: "POST",
           headers: getCheckoutHeaders(),
-          body: JSON.stringify({
-            orderId,
-          }),
+          body: JSON.stringify({ orderId }),
         }
       );
 
@@ -151,7 +183,7 @@ export default function Cart({ refreshCartCount }) {
       const stripeData = await stripeResponse.json();
 
       if (!stripeData?.url) {
-        throw new Error("URL Stripe introuvable");
+        throw new Error("URL Stripe introuvable.");
       }
 
       window.location.href = stripeData.url;
@@ -160,7 +192,7 @@ export default function Cart({ refreshCartCount }) {
     } finally {
       setCheckoutLoading(false);
     }
-  };
+  }
 
   if (loading) {
     return <div className="page-message">Chargement du panier...</div>;
@@ -171,7 +203,7 @@ export default function Cart({ refreshCartCount }) {
   }
 
   return (
-    <div className="page">
+    <main className="page">
       <h1>Panier</h1>
 
       {cart.length === 0 ? (
@@ -184,6 +216,7 @@ export default function Cart({ refreshCartCount }) {
                 <p>
                   <strong>{item.name}</strong>
                 </p>
+
                 <p>
                   {item.quantity} × {formatPrice(item.price)}
                 </p>
@@ -207,19 +240,23 @@ export default function Cart({ refreshCartCount }) {
                 key={option.method}
                 style={{
                   display: "block",
-                  padding: "12px",
+                  padding: "14px",
                   marginBottom: "10px",
                   border: "1px solid rgba(155, 111, 111, 0.16)",
                   borderRadius: "16px",
                   cursor: "pointer",
+                  background:
+                    shippingMethod === option.method
+                      ? "rgba(255, 255, 255, 0.7)"
+                      : "transparent",
                 }}
               >
                 <input
                   type="radio"
                   name="shippingMethod"
                   value={option.method}
-                  checked={selectedShippingMethod === option.method}
-                  onChange={(e) => setSelectedShippingMethod(e.target.value)}
+                  checked={shippingMethod === option.method}
+                  onChange={() => handleShippingChange(option.method)}
                   style={{ marginRight: "10px" }}
                 />
 
@@ -228,6 +265,58 @@ export default function Cart({ refreshCartCount }) {
                 <span style={{ color: "#655350" }}>{option.description}</span>
               </label>
             ))}
+
+            {shippingMethod === "relay" && (
+              <div
+                style={{
+                  marginTop: "18px",
+                  padding: "16px",
+                  border: "1px solid rgba(155, 111, 111, 0.16)",
+                  borderRadius: "16px",
+                  background: "rgba(255, 255, 255, 0.55)",
+                }}
+              >
+                <h3>Point relais Mondial Relay</h3>
+
+                <p>
+                  Sélectionnez le point relais où vous souhaitez recevoir votre
+                  commande.
+                </p>
+
+                <button
+                  type="button"
+                  className="product-detail__button"
+                  onClick={handleOpenRelayWidget}
+                >
+                  Choisir un point relais
+                </button>
+
+                <div id="relay-widget" style={{ marginTop: "16px" }} />
+
+                {relayPoint && (
+                  <div
+                    style={{
+                      marginTop: "16px",
+                      padding: "14px",
+                      border: "1px solid rgba(155, 111, 111, 0.16)",
+                      borderRadius: "16px",
+                      background: "#fff",
+                    }}
+                  >
+                    <p>
+                      <strong>Point relais sélectionné :</strong>
+                    </p>
+                    <p>
+                      <strong>{relayPoint.name}</strong>
+                    </p>
+                    <p>{relayPoint.address}</p>
+                    <p>
+                      {relayPoint.postal_code} {relayPoint.city}
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
           </section>
 
           <section className="order-card" style={{ marginTop: "24px" }}>
@@ -235,9 +324,11 @@ export default function Cart({ refreshCartCount }) {
               <strong>Sous-total produits :</strong>{" "}
               {formatPrice(productsTotal)}
             </p>
+
             <p>
               <strong>Livraison :</strong> {formatPrice(shippingTotal)}
             </p>
+
             <h2>Total : {formatPrice(total)}</h2>
           </section>
 
@@ -260,6 +351,6 @@ export default function Cart({ refreshCartCount }) {
           </button>
         </>
       )}
-    </div>
+    </main>
   );
 }

@@ -1,4 +1,5 @@
 import pool from "../config/db.js";
+import User from "./User.js";
 
 export const SHIPPING_METHODS = {
   home: {
@@ -26,6 +27,8 @@ class Order {
       await connection.beginTransaction();
 
       const shipping = getShippingConfig(options.shippingMethod);
+      const relay = options.relayPoint || null;
+      const user = await User.findById(userId);
 
       const [cartItems] = await connection.query(
         `
@@ -60,13 +63,12 @@ class Order {
       }
 
       const subtotal = cartItems.reduce(
-        (sum, item) => sum + Number(item.price) * item.quantity,
+        (sum, item) => sum + Number(item.price) * Number(item.quantity),
         0
       );
 
       const shippingAmount = Number(shipping.amount);
       const total = subtotal + shippingAmount;
-
       const saleReference = `VENTE-${Date.now()}`;
 
       const [orderResult] = await connection.query(
@@ -81,9 +83,27 @@ class Order {
           status,
           payment_status,
           shipping_method,
-          shipping_label
+          shipping_label,
+          shipping_address_line1,
+          shipping_postal_code,
+          shipping_city,
+          shipping_country,
+          relay_point_id,
+          relay_point_name,
+          relay_point_address,
+          relay_point_postal_code,
+          relay_point_city,
+          relay_point_country
         )
-        VALUES (?, ?, ?, ?, ?, 'eur', 'pending', 'unpaid', ?, ?)
+        VALUES (
+          ?, ?, ?, ?, ?,
+          'eur',
+          'pending',
+          'unpaid',
+          ?, ?,
+          ?, ?, ?, ?,
+          ?, ?, ?, ?, ?, ?
+        )
         `,
         [
           saleReference,
@@ -91,8 +111,21 @@ class Order {
           subtotal,
           shippingAmount,
           total,
+
           shipping.method,
           shipping.label,
+
+          user?.address || null,
+          user?.postal_code || null,
+          user?.city || null,
+          user?.country || "FR",
+
+          relay?.id || null,
+          relay?.name || null,
+          relay?.address || null,
+          relay?.postal_code || relay?.postalCode || null,
+          relay?.city || null,
+          relay?.country || null,
         ]
       );
 
@@ -100,7 +133,8 @@ class Order {
 
       for (const item of cartItems) {
         const unitPrice = Number(item.price);
-        const lineTotal = unitPrice * item.quantity;
+        const quantity = Number(item.quantity);
+        const lineTotal = unitPrice * quantity;
 
         await connection.query(
           `
@@ -121,7 +155,7 @@ class Order {
             item.product_id,
             item.name,
             item.product_image,
-            item.quantity,
+            quantity,
             unitPrice,
             unitPrice,
             lineTotal,
@@ -134,7 +168,7 @@ class Order {
           SET stock = stock - ?
           WHERE id = ?
           `,
-          [item.quantity, item.product_id]
+          [quantity, item.product_id]
         );
       }
 
