@@ -16,12 +16,16 @@ async function getTransporter() {
       secure: testAccount.smtp.secure,
       auth: {
         user: testAccount.user,
-        pass: testAccount.pass
-      }
+        pass: testAccount.pass,
+      },
     });
   })();
 
   return transporterPromise;
+}
+
+function formatPrice(value) {
+  return `${Number(value || 0).toFixed(2)} €`;
 }
 
 export async function sendResetPasswordEmail({ to, resetUrl }) {
@@ -53,8 +57,8 @@ export async function sendOrderPaidEmail({ to, order, items }) {
         <tr>
           <td style="padding:8px;border-bottom:1px solid #eee;">${item.product_name}</td>
           <td style="padding:8px;border-bottom:1px solid #eee;">${item.quantity}</td>
-          <td style="padding:8px;border-bottom:1px solid #eee;">${item.unit_price} €</td>
-          <td style="padding:8px;border-bottom:1px solid #eee;">${item.line_total} €</td>
+          <td style="padding:8px;border-bottom:1px solid #eee;">${formatPrice(item.unit_price)}</td>
+          <td style="padding:8px;border-bottom:1px solid #eee;">${formatPrice(item.line_total)}</td>
         </tr>
       `
     )
@@ -70,7 +74,10 @@ export async function sendOrderPaidEmail({ to, order, items }) {
         <p>Votre paiement a bien été confirmé.</p>
 
         <p><strong>Référence :</strong> ${order.sale_reference}</p>
-        <p><strong>Total :</strong> ${order.total} €</p>
+        <p><strong>Mode de livraison :</strong> ${order.shipping_label || "Non renseigné"}</p>
+        <p><strong>Sous-total :</strong> ${formatPrice(order.subtotal)}</p>
+        <p><strong>Livraison :</strong> ${formatPrice(order.shipping_amount)}</p>
+        <p><strong>Total payé :</strong> ${formatPrice(order.total)}</p>
         <p><strong>Date :</strong> ${new Date(order.created_at).toLocaleString("fr-FR")}</p>
 
         <h2 style="margin-top:24px;">Détail de la commande</h2>
@@ -89,9 +96,13 @@ export async function sendOrderPaidEmail({ to, order, items }) {
           </tbody>
         </table>
 
+        <p style="margin-top:24px;">
+          Le numéro de suivi vous sera transmis dès l’expédition de votre commande.
+        </p>
+
         <p style="margin-top:24px;">À bientôt sur NéLégance.</p>
       </div>
-    `
+    `,
   });
 
   return nodemailer.getTestMessageUrl(info);
@@ -111,6 +122,17 @@ export async function sendOrderShippedEmail({ to, order, items }) {
     )
     .join("");
 
+  const trackingBlock = order.tracking_number
+    ? `
+      <p><strong>Numéro de suivi :</strong> ${order.tracking_number}</p>
+      ${
+        order.tracking_url
+          ? `<p><strong>Lien de suivi :</strong> <a href="${order.tracking_url}">${order.tracking_url}</a></p>`
+          : ""
+      }
+    `
+    : "<p>Le suivi sera communiqué prochainement.</p>";
+
   const info = await transporter.sendMail({
     from: '"NéLégance" <no-reply@nelegance.local>',
     to,
@@ -121,7 +143,8 @@ export async function sendOrderShippedEmail({ to, order, items }) {
         <p>Bonne nouvelle, votre commande est en route.</p>
 
         <p><strong>Référence :</strong> ${order.sale_reference}</p>
-        <p><strong>Total :</strong> ${order.total} €</p>
+        <p><strong>Mode de livraison :</strong> ${order.shipping_label || "Non renseigné"}</p>
+        ${trackingBlock}
 
         <h2 style="margin-top:24px;">Produits expédiés</h2>
 
@@ -139,7 +162,7 @@ export async function sendOrderShippedEmail({ to, order, items }) {
 
         <p style="margin-top:24px;">Merci pour votre confiance.</p>
       </div>
-    `
+    `,
   });
 
   return nodemailer.getTestMessageUrl(info);
@@ -159,7 +182,7 @@ export async function sendWelcomeEmail({ to, prenom }) {
         <p>Vous pouvez maintenant vous connecter et passer votre commande.</p>
         <p>À bientôt sur NéLégance.</p>
       </div>
-    `
+    `,
   });
 
   const previewUrl = nodemailer.getTestMessageUrl(info);

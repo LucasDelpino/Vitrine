@@ -3,18 +3,20 @@ import Order from "../models/Order.js";
 export const createOrder = async (req, res) => {
   try {
     const userId = req.user.id;
+    const { shippingMethod } = req.body;
 
-    const order = await Order.createFromCart(userId);
+    const order = await Order.createFromCart(userId, { shippingMethod });
 
     res.status(201).json({
       message: "Commande créée avec succès",
-      order
+      order,
     });
   } catch (error) {
     console.error("Erreur createOrder :", error.message);
 
     if (
       error.message === "Panier vide" ||
+      error.message === "Mode de livraison invalide" ||
       error.message.startsWith("Stock insuffisant")
     ) {
       return res.status(400).json({ error: error.message });

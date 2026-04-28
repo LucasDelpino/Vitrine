@@ -1,11 +1,31 @@
 import pool from "../config/db.js";
 
+export const SHIPPING_METHODS = {
+  home: {
+    method: "home",
+    label: "Livraison à domicile (avec suivi)",
+    amount: 4.9,
+  },
+  relay: {
+    method: "relay",
+    label: "Livraison en point relais",
+    amount: 3.9,
+  },
+};
+
+function getShippingConfig(shippingMethod) {
+  const method = shippingMethod || "home";
+  return SHIPPING_METHODS[method] || SHIPPING_METHODS.home;
+}
+
 class Order {
-  static async createFromCart(userId) {
+  static async createFromCart(userId, options = {}) {
     const connection = await pool.getConnection();
 
     try {
       await connection.beginTransaction();
+
+      const shipping = getShippingConfig(options.shippingMethod);
 
       const [cartItems] = await connection.query(
         `
@@ -44,7 +64,7 @@ class Order {
         0
       );
 
-      const shippingAmount = 0;
+      const shippingAmount = Number(shipping.amount);
       const total = subtotal + shippingAmount;
 
       const saleReference = `VENTE-${Date.now()}`;
@@ -59,11 +79,21 @@ class Order {
           total,
           currency,
           status,
-          payment_status
+          payment_status,
+          shipping_method,
+          shipping_label
         )
-        VALUES (?, ?, ?, ?, ?, 'eur', 'pending', 'unpaid')
+        VALUES (?, ?, ?, ?, ?, 'eur', 'pending', 'unpaid', ?, ?)
         `,
-        [saleReference, userId, subtotal, shippingAmount, total]
+        [
+          saleReference,
+          userId,
+          subtotal,
+          shippingAmount,
+          total,
+          shipping.method,
+          shipping.label,
+        ]
       );
 
       const orderId = orderResult.insertId;
@@ -94,7 +124,7 @@ class Order {
             item.quantity,
             unitPrice,
             unitPrice,
-            lineTotal
+            lineTotal,
           ]
         );
 
@@ -108,10 +138,7 @@ class Order {
         );
       }
 
-      await connection.query(
-        "DELETE FROM cart WHERE user_id = ?",
-        [userId]
-      );
+      await connection.query("DELETE FROM cart WHERE user_id = ?", [userId]);
 
       await connection.commit();
 
@@ -181,6 +208,7 @@ class Order {
       [sessionId, orderId]
     );
   }
+
   static async getAllAdmin() {
     const [rows] = await pool.query(
       `
@@ -206,6 +234,30 @@ class Order {
       WHERE id = ?
       `,
       [status, orderId]
+    );
+  }
+
+  static async updateStatusAndTracking(
+    orderId,
+    { status, trackingNumber = "", trackingUrl = "" }
+  ) {
+    await pool.query(
+      `
+      UPDATE orders
+      SET
+        status = ?,
+        tracking_number = ?,
+        tracking_url = ?,
+        shipped_at = CASE WHEN ? = 'shipped' THEN NOW() ELSE shipped_at END
+      WHERE id = ?
+      `,
+      [
+        status,
+        trackingNumber || null,
+        trackingUrl || null,
+        status,
+        orderId,
+      ]
     );
   }
 

@@ -2,14 +2,9 @@ import Order from "../models/Order.js";
 import User from "../models/User.js";
 import { sendOrderShippedEmail } from "../services/mail.service.js";
 
-const ALLOWED_STATUSES = [
-  "pending",
-  "paid",
-  "shipped",
-  "cancelled"
-];
+const ALLOWED_STATUSES = ["pending", "paid", "shipped", "cancelled"];
 
-export const getAllOrdersAdmin = async (req, res) => {
+export const getAllOrdersAdmin = async (_req, res) => {
   try {
     const orders = await Order.getAllAdmin();
     res.json(orders);
@@ -22,13 +17,23 @@ export const getAllOrdersAdmin = async (req, res) => {
 export const updateOrderStatusAdmin = async (req, res) => {
   try {
     const { id } = req.params;
-    const { status } = req.body;
+    const { status, trackingNumber = "", trackingUrl = "" } = req.body;
 
     if (!ALLOWED_STATUSES.includes(status)) {
       return res.status(400).json({ error: "Statut invalide" });
     }
 
-    await Order.updateStatus(id, status);
+    if (status === "shipped" && !trackingNumber.trim()) {
+      return res.status(400).json({
+        error: "Numéro de suivi requis pour passer la commande en expédiée",
+      });
+    }
+
+    await Order.updateStatusAndTracking(id, {
+      status,
+      trackingNumber: trackingNumber.trim(),
+      trackingUrl: trackingUrl.trim(),
+    });
 
     if (status === "shipped") {
       const order = await Order.getOneAdmin(id);
@@ -41,7 +46,7 @@ export const updateOrderStatusAdmin = async (req, res) => {
           const previewUrl = await sendOrderShippedEmail({
             to: user.email,
             order,
-            items
+            items,
           });
 
           console.log("Aperçu email expédition Ethereal :", previewUrl);
@@ -49,7 +54,12 @@ export const updateOrderStatusAdmin = async (req, res) => {
       }
     }
 
-    res.json({ message: "Statut mis à jour" });
+    const updatedOrder = await Order.getOneAdmin(id);
+
+    res.json({
+      message: "Statut mis à jour",
+      order: updatedOrder,
+    });
   } catch (error) {
     console.error("Erreur updateOrderStatusAdmin :", error.message);
     res.status(500).json({ error: "Erreur serveur" });
