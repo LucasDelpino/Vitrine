@@ -23,7 +23,7 @@ Application e-commerce en cours de développement avec :
 
 ## Installation
 
-git clone ...
-docker-compose up
-npm install
-npm run dev
+- git clone ...
+- docker-compose up
+- npm install
+- npm run dev
