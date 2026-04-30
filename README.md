@@ -50,13 +50,23 @@ Application e-commerce complète développée en fullstack permettant la gestion
 
 ## 📸 Aperçu
 
-> ⚠️ À compléter avec tes screenshots
-
 - Page d'accueil
+- <img width="1919" height="917" alt="image" src="https://github.com/user-attachments/assets/95c5226d-25b3-4faa-9ffd-842a8e42a08b" />
+
 - Fiche produit
+- <img width="1131" height="920" alt="image" src="https://github.com/user-attachments/assets/252e0a26-d379-46bd-a94c-9e9f5fe56644" />
+
 - Panier
+- <img width="672" height="777" alt="image" src="https://github.com/user-attachments/assets/3de1c774-1b43-4b85-9d84-ac3b261b859a" />
+
 - Paiement
+- <img width="999" height="918" alt="image" src="https://github.com/user-attachments/assets/7e72e9e0-252a-4041-9256-471a0f135a98" />
+
 - Interface admin
+- <img width="1121" height="679" alt="image" src="https://github.com/user-attachments/assets/382972b0-b88a-4855-9a3b-65c3cbddb777" />
+- <img width="1091" height="536" alt="image" src="https://github.com/user-attachments/assets/b1c0bc62-0de5-41e2-b6a5-071b171acf70" />
+
+
 
 ---
 
