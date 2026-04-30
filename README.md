@@ -77,3 +77,18 @@ Application e-commerce complète développée en fullstack permettant la gestion
 ```bash
 git clone https://github.com/LucasDelpino/Vitrine.git
 cd Vitrine
+
+---
+
+## 📂 Structure du projet
+
+```bash
+Vitrine/
+├── client/        # Frontend React / Vite
+├── server/        # Backend Node.js / Express
+├── db_init/       # Scripts SQL d'initialisation
+├── docker-compose.yml
+├── Dockerfile
+├── .gitignore
+└── README.md
+
