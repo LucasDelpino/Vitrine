@@ -1,11 +1,19 @@
-# Vitrine - Application e-commerce
+# Vitrine - Application e-commerce fullstack permettant la gestion de produits, commandes et paiements.
 
-Application e-commerce en cours de refonte avec :
+Application e-commerce en cours de développement avec :
 
 - Front : React + Vite
 - Back : Node.js + Express
 - Base de données : MySQL
 - Paiement : Stripe
+- Déploiement : Docker
+
+## Features 
+
+- Authentification
+- Paiement Stripe
+- Gestion des stock
+- API REST
 
 ## Structure du projet
 
@@ -13,8 +21,9 @@ Application e-commerce en cours de refonte avec :
 - `server/` : API Express
 - `db_init/` : scripts SQL d'initialisation / migration
 
-## Lancement en local
+## Installation
 
-### 1. Lancer MySQL
-```bash
-docker-compose up -d
+git clone ...
+docker-compose up
+npm install
+npm run dev
