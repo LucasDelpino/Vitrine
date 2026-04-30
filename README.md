@@ -85,10 +85,12 @@ Vitrine/
 PORT=3000
 DB_HOST=localhost
 DB_PORT=****
-DB_USER=
-DB_PASSWORD=
-DB_NAME=
+DB_USER=****
+DB_PASSWORD=****
+DB_NAME=****
 STRIPE_SECRET_KEY=your_stripe_secret_key
+
+- Dans les champs : **** , mettez les valeurs associées à votre base de données
 
 ### 2. Créer un fichier .env dans le dossier client/ :
 
